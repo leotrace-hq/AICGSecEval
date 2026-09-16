@@ -74,16 +74,17 @@ class ClaudeCodeAgentBench(AgentBenchBase):
                             default="subscription",
                             help="subscription uses CLAUDE_CODE_OAUTH_TOKEN and refuses to fall back to a billed API key")
         parser.add_argument("--env_file", type=str,
-                            default=os.environ.get("LEOPREVENT_ENV_FILE",
-                                                   "/Users/bbaukema/Documents/github/leotrace-hq/leoprevent/server/.env"),
-                            help="KEY=VALUE file holding CLAUDE_CODE_OAUTH_TOKEN (shared with the LeoPrevent server)")
+                            default=os.environ.get("LEOPREVENT_ENV_FILE"),
+                            help="KEY=VALUE file holding CLAUDE_CODE_OAUTH_TOKEN (default $LEOPREVENT_ENV_FILE; "
+                                 "if unset the token is read from the process environment)")
         parser.add_argument("--leoprevent_plugin_dir", type=str,
-                            default=os.environ.get("LEOPREVENT_PLUGIN_DIR",
-                                                   "/Users/bbaukema/Documents/github/leotrace-hq/leoprevent/plugin"),
-                            help="local LeoPrevent plugin directory (loaded on the leoprevent arm)")
+                            default=os.environ.get("LEOPREVENT_PLUGIN_DIR"),
+                            help="local LeoPrevent plugin directory, required for --arm leoprevent "
+                                 "(default $LEOPREVENT_PLUGIN_DIR)")
         parser.add_argument("--leoprevent_server_url", type=str,
                             default=os.environ.get("LEOPREVENT_SERVER_URL", "http://127.0.0.1:8787"),
-                            help="LeoPrevent server the plugin's review calls hit")
+                            help="LeoPrevent server the plugin's review calls hit "
+                                 "(default $LEOPREVENT_SERVER_URL or http://127.0.0.1:8787)")
         return parser.parse_args(args)
 
     def _agent_env(self):
@@ -95,9 +96,10 @@ class ClaudeCodeAgentBench(AgentBenchBase):
         if self._auth == "subscription":
             token = secrets.get("CLAUDE_CODE_OAUTH_TOKEN") or os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
             if not token:
+                where = f"the environment or {self._env_file}" if self._env_file else "the environment"
                 raise RuntimeError(
-                    f"--auth subscription needs CLAUDE_CODE_OAUTH_TOKEN (in env or {self._env_file}); "
-                    f"mint one with `claude setup-token`, or pass --auth api-key to accept billing.")
+                    f"--auth subscription needs CLAUDE_CODE_OAUTH_TOKEN in {where} (set $LEOPREVENT_ENV_FILE "
+                    "or --env_file); mint one with `claude setup-token`, or pass --auth api-key for billing.")
             env["CLAUDE_CODE_OAUTH_TOKEN"] = token
             for k in _API_OVERRIDES:          # strip anything that outranks the subscription token
                 env.pop(k, None)
@@ -113,6 +115,9 @@ class ClaudeCodeAgentBench(AgentBenchBase):
         return env
 
     async def start(self):
+        if self._arm == "leoprevent" and not self._plugin_dir:
+            raise RuntimeError("--arm leoprevent needs the LeoPrevent plugin directory; set "
+                               "$LEOPREVENT_PLUGIN_DIR or pass --leoprevent_plugin_dir.")
         env = self._agent_env()
         plugins = ([{"type": "local", "path": self._plugin_dir}]
                    if self._arm == "leoprevent" else [])

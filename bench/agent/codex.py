@@ -49,17 +49,20 @@ class CodexAgentBench(AgentBenchBase):
                             help="raw = agent alone; leoprevent = agent with the LeoPrevent review plugin")
         parser.add_argument("--auth", type=str, choices=["subscription", "api-key"], default="subscription",
                             help="subscription uses ~/.codex/auth.json (ChatGPT); refuses to fall back to a billed OpenAI key")
-        parser.add_argument("--env_file", type=str,
-                            default=os.environ.get("LEOPREVENT_ENV_FILE",
-                                                   "/Users/bbaukema/Documents/github/leotrace-hq/leoprevent/server/.env"))
         parser.add_argument("--leoprevent_plugin_dir", type=str,
-                            default=os.environ.get("LEOPREVENT_PLUGIN_DIR",
-                                                   "/Users/bbaukema/Documents/github/leotrace-hq/leoprevent/plugin"))
+                            default=os.environ.get("LEOPREVENT_PLUGIN_DIR"),
+                            help="local LeoPrevent plugin directory, required for --arm leoprevent "
+                                 "(default $LEOPREVENT_PLUGIN_DIR)")
         parser.add_argument("--leoprevent_server_url", type=str,
-                            default=os.environ.get("LEOPREVENT_SERVER_URL", "http://127.0.0.1:8787"))
+                            default=os.environ.get("LEOPREVENT_SERVER_URL", "http://127.0.0.1:8787"),
+                            help="LeoPrevent server the plugin's review calls hit "
+                                 "(default $LEOPREVENT_SERVER_URL or http://127.0.0.1:8787)")
         return parser.parse_args(args)
 
     async def start(self):
+        if self._arm == "leoprevent" and not self._plugin_dir:
+            raise RuntimeError("--arm leoprevent needs the LeoPrevent plugin directory; set "
+                               "$LEOPREVENT_PLUGIN_DIR or pass --leoprevent_plugin_dir.")
         env = dict(os.environ)
         self._stage = tempfile.mkdtemp(prefix="asecodex-")
 
