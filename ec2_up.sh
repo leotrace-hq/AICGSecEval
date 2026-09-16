@@ -24,6 +24,16 @@ REPO_BRANCH="${REPO_BRANCH:-leobench-arm}"
 ON_DEMAND="${ON_DEMAND:-0}"   # default: try Spot, fall back to on-demand. --on-demand forces on-demand.
 for a in "$@"; do case "$a" in --on-demand) ON_DEMAND=1;; *) echo "unknown arg: $a" >&2; exit 2;; esac; done
 
+# These env vars are interpolated into a JSON arg (VOLUME_GB) and the user-data shell script
+# (REPO_URL/REPO_BRANCH), so validate them before use. Operator-set, not attacker input, but a
+# malformed value would corrupt the block-device JSON or inject commands onto the provisioned host.
+[[ "$VOLUME_GB" =~ ^[0-9]+$ ]] && [ "$VOLUME_GB" -ge 1 ] && [ "$VOLUME_GB" -le 16384 ] \
+  || { echo "VOLUME_GB must be an integer 1-16384" >&2; exit 2; }
+[[ "$REPO_BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]] \
+  || { echo "invalid REPO_BRANCH (letters/digits and . _ / - only)" >&2; exit 2; }
+[[ "$REPO_URL" =~ ^https://[A-Za-z0-9._/-]+$ ]] \
+  || { echo "invalid REPO_URL (must be an https:// URL with no shell metacharacters)" >&2; exit 2; }
+
 [ -n "$REGION" ] || { echo "no AWS region — set REGION or run 'aws configure'" >&2; exit 2; }
 [ -e "$STATE_FILE" ] && { echo "$STATE_FILE exists — a host may already be up. Run ./ec2_down.sh first." >&2; exit 1; }
 
