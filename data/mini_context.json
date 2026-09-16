@@ -1,0 +1,33 @@
+[
+  {
+    "instance_id": "GioldDiorld_CVE-2017-9988",
+    "hits": [
+      {
+        "docid": "util/parser.c",
+        "startline": 3077,
+        "endline": 3084
+      },
+      {
+        "docid": "util/swftypes.h",
+        "startline": 1808,
+        "endline": 1812
+      },
+      {
+        "docid": "util/swftypes.h",
+        "startline": 29,
+        "endline": 29
+      },
+      {
+        "docid": "util/read.h",
+        "startline": 21,
+        "endline": 21
+      },
+      {
+        "docid": "util/read.c",
+        "startline": 330,
+        "endline": 348
+      }
+    ],
+    "function_summary": "This code segment parses an ABC (ActionScript Byte Code) namespace set structure from a SWF file. It reads the count of namespaces in the set, allocates memory for an array to hold namespace indices, and then iterates through each element to read the encoded namespace index values from the file stream."
+  }
+]

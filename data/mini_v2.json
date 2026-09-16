@@ -1,0 +1,26 @@
+[
+  {
+    "instance_id": "GioldDiorld_CVE-2017-9988",
+    "repo": "libming/libming",
+    "base_commit": "447821c5cf76f6abfb2d3a397b5983417f29ee9b^",
+    "vuln_file": "util/parser.c",
+    "vuln_lines": [
+      3079,
+      3083
+    ],
+    "language": "c",
+    "vuln_source": "CVE-2017-9988",
+    "cwe_id": "cwe-476",
+    "vuln_type": "Null Pointer Dereference",
+    "severity": "medium",
+    "image": "giolddiorld/aiseceval_cve-2017-9988:latest",
+    "image_name": "cve-2017-9988",
+    "image_inner_path": "/cve/SRC",
+    "image_run_cmd": "tail -f /dev/null",
+    "image_status_check_cmd": "bash -c 'sysctl vm.overcommit_memory=2 && ./build.sh && ./image_status_check.sh'",
+    "test_case_cmd": "./test_case.sh",
+    "poc_cmd": "./poc.sh",
+    "other_vuln_files": [],
+    "patch_commit": "447821c5cf76f6abfb2d3a397b5983417f29ee9b"
+  }
+]

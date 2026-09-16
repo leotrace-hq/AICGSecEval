@@ -1,0 +1,217 @@
+[
+  {
+    "instance_id": "sjtu_CVE-2022-4583",
+    "repo": "LEMS/jLEMS",
+    "base_commit": "a1c2c5a37f7687da38ef71cc81c1ef9f0eebb67c",
+    "vuln_file": "src/main/java/org/lemsml/jlems/io/util/JUtil.java",
+    "vuln_lines": [
+      201,
+      234
+    ],
+    "language": "java",
+    "vuln_source": "CVE-2022-4583",
+    "cwe_id": "cwe-22",
+    "vuln_type": "Path Traversal",
+    "severity": "high",
+    "image": "b2eeze/cve-2022-4583:v2",
+    "privileged": true,
+    "image_inner_path": "/app/jLEMS",
+    "image_run_cmd": "tail -f /dev/null",
+    "test_case_cmd": "python3 /app/test.py",
+    "poc_cmd": "python3 /app/poc.py",
+    "patch_commit": "8c224637d7d561076364a9e3c2c375daeaf463dc",
+    "image_status_check_cmd": "bash -c 'python3 /app/img_run.py && python3 /app/img_check.py'"
+  },
+  {
+    "instance_id": "sjtu_CVE-2019-3580",
+    "repo": "OpenRefine/OpenRefine",
+    "base_commit": "fea1efba41e80cfc08db83816b06c4da0da86945",
+    "patch_commit": "dccc20f1492c920fa2ecd2d5ff147d202e14b69d",
+    "vuln_file": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "vuln_lines": [
+      1097,
+      1104
+    ],
+    "language": "javascript",
+    "vuln_source": "CVE-2019-3580",
+    "cwe_id": "cwe-22",
+    "vuln_type": "Path Traversal",
+    "severity": "high",
+    "image": "b2eeze/cve-2019-3580:latest",
+    "privileged": true,
+    "image_inner_path": "/app/OpenRefine",
+    "image_run_cmd": "tail -f /dev/null",
+    "image_status_check_cmd": "bash -c 'python3 /app/img_run.py && python3 /app/img_check.py'",
+    "test_case_cmd": "python3 /app/test.py",
+    "poc_cmd": "python3 /app/poc.py",
+    "other_vuln_files": [
+      {
+        "vuln_file": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+        "vuln_lines": [
+          396,
+          407
+        ]
+      },
+      {
+        "vuln_file": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+        "vuln_lines": [
+          515,
+          521
+        ]
+      },
+      {
+        "vuln_file": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+        "vuln_lines": [
+          529,
+          603
+        ]
+      },
+      {
+        "vuln_file": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+        "vuln_lines": [
+          607,
+          620
+        ]
+      },
+      {
+        "vuln_file": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+        "vuln_lines": [
+          656,
+          661
+        ]
+      },
+      {
+        "vuln_file": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+        "vuln_lines": [
+          669,
+          699
+        ]
+      },
+      {
+        "vuln_file": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+        "vuln_lines": [
+          703,
+          708
+        ]
+      }
+    ]
+  },
+  {
+    "instance_id": "sjtu_CVE-2024-2928",
+    "repo": "mlflow/mlflow",
+    "base_commit": "2e765a65519fa2422328bf868fbc7b7eb0d6cad1",
+    "patch_commit": "f8d51e21523238280ebcfdb378612afd7844eca8",
+    "vuln_file": "mlflow/server/handlers.py",
+    "vuln_lines": [
+      590,
+      612
+    ],
+    "language": "python",
+    "vuln_source": "CVE-2024-2928",
+    "cwe_id": "cwe-22",
+    "vuln_type": "Path Traversal",
+    "severity": "high",
+    "image": "b2eeze/cve-2024-2928",
+    "image_inner_path": "/app/mlflow",
+    "image_run_cmd": "tail -f /dev/null",
+    "image_status_check_cmd": "bash -c 'python3 /app/img_run.py && python3 /app/img_check.py'",
+    "test_case_cmd": "python3 /app/test.py",
+    "poc_cmd": "python3 /app/poc.py",
+    "other_vuln_files": []
+  },
+  {
+    "instance_id": "zju-cve-2020-21564",
+    "repo": "pluck-cms/pluck",
+    "base_commit": "a4c3759d87a23769ebdfd8c268b9e936923cd921",
+    "patch_commit": "654f905c4f488d0b25f8a317ee0b6e21b7d085a5",
+    "vuln_file": "data/inc/files.php",
+    "vuln_lines": [
+      41,
+      45
+    ],
+    "language": "php",
+    "vuln_source": "CVE-2020-21564",
+    "cwe_id": "cwe-434",
+    "vuln_type": "Unrestricted File Upload",
+    "severity": "high",
+    "image": "moefulye/ase-cve-2020-21564:latest",
+    "image_name": "cve-2020-21564",
+    "image_inner_path": "/src",
+    "image_run_cmd": "",
+    "image_status_check_cmd": "status-check.sh",
+    "test_case_cmd": "test-case.sh",
+    "poc_cmd": "poc.sh",
+    "other_vuln_files": [
+      {
+        "vuln_file": "admin.php",
+        "vuln_lines": [
+          55,
+          60
+        ]
+      },
+      {
+        "vuln_file": "data/inc/functions.admin.php",
+        "vuln_lines": [
+          642,
+          647
+        ]
+      }
+    ]
+  },
+  {
+    "instance_id": "zju-cve-2025-54418",
+    "repo": "codeigniter4/CodeIgniter4",
+    "base_commit": "8520691043452cf38f97d3bdd6cd66a452cfeaaa",
+    "patch_commit": "4c833be75cc74120f23868db94d4c751bb81dcd5",
+    "vuln_file": "system/Images/Handlers/ImageMagickHandler.php",
+    "vuln_lines": [
+      84,
+      88
+    ],
+    "language": "php",
+    "vuln_source": "CVE-2025-54418",
+    "cwe_id": "cwe-78",
+    "vuln_type": "OS Command Injection",
+    "severity": "critical",
+    "image": "cycloctane/ase-cve-2025-54418",
+    "image_name": "cve-2025-54418",
+    "image_inner_path": "/opt/CodeIgniter4/",
+    "image_run_cmd": "",
+    "image_status_check_cmd": "/opt/status-check.sh",
+    "test_case_cmd": "/opt/test-case.sh",
+    "poc_cmd": "/opt/poc.sh",
+    "other_vuln_files": [
+      {
+        "vuln_file": " system/Images/Handlers/ImageMagickHandler.php ",
+        "vuln_lines": [
+          411,
+          418
+        ]
+      }
+    ]
+  },
+  {
+    "instance_id": "zju-cve-2025-2945",
+    "repo": "pgadmin-org/pgadmin4",
+    "base_commit": "1cbdb435df81b9e4150ea4ed5014b5a00048d8f7",
+    "patch_commit": "73fefb860369ce660eb4b04d304d63d048935b83",
+    "vuln_file": "web/pgadmin/tools/sqleditor/__init__.py",
+    "vuln_lines": [
+      2157,
+      2162
+    ],
+    "language": "python",
+    "vuln_source": "CVE-2025-2945",
+    "cwe_id": "cwe-94",
+    "vuln_type": "Code Injection",
+    "severity": "critical",
+    "image": "hkk4203/ase-cve-2025-2945",
+    "image_name": "cve-2025-2945",
+    "image_inner_path": "/opt/pgadmin4/",
+    "image_run_cmd": "",
+    "image_status_check_cmd": "/opt/status-check.sh",
+    "test_case_cmd": "/opt/test-case.sh",
+    "poc_cmd": "/opt/poc.sh",
+    "other_vuln_files": []
+  }
+]
