@@ -30,7 +30,8 @@
 set -euo pipefail
 
 HOST="" AGENT="" BATCH="" DATASET="data/data_v2.json" OUTDIR="outputs" WORKERS=16
-REMOTE_REPO='ase' SSH_OPTS=""   # relative to the remote $HOME, or an absolute path
+REMOTE_REPO='ase' SSH_OPTS="" NUM_CYCLES=1   # NUM_CYCLES MUST match what gen_code produced
+                                              # (REMOTE_REPO: relative to remote $HOME, or absolute)
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -40,6 +41,7 @@ while [ $# -gt 0 ]; do
     --dataset)     DATASET="$2"; shift 2;;
     --output-dir)  OUTDIR="$2"; shift 2;;
     --workers)     WORKERS="$2"; shift 2;;
+    --num-cycles)  NUM_CYCLES="$2"; shift 2;;
     --remote-repo) REMOTE_REPO="$2"; shift 2;;
     --ssh-opts)    SSH_OPTS="$2"; shift 2;;
     *) echo "unknown arg: $1" >&2; exit 2;;
@@ -57,6 +59,7 @@ _ck batch       "$BATCH"       '^[A-Za-z0-9_-]+$'
 _ck dataset     "$DATASET"     '^[A-Za-z0-9_./-]+$'
 _ck output-dir  "$OUTDIR"      '^[A-Za-z0-9_./-]+$'
 _ck workers     "$WORKERS"     '^[0-9]+$'
+_ck num-cycles  "$NUM_CYCLES"  '^[0-9]+$'
 _ck remote-repo "$REMOTE_REPO" '^[A-Za-z0-9_./-]+$'   # relative-to-$HOME or absolute; no ~, no metacharacters
 
 GEN_DIR="$OUTDIR/generated_code/${AGENT}__${BATCH}"
@@ -74,15 +77,29 @@ fi
 
 echo "[verify] ship generated code + dataset to $HOST:$RROOT"
 SSH "mkdir -p '$RROOT/$OUTDIR/generated_code' '$RROOT/$(dirname "$DATASET")'"
-RSYNC --delete "$GEN_DIR/" "$HOST:$RROOT/$GEN_DIR/"
+# Ship the generated source (the <instance>_cycleN dirs) AND processed_instances.json — the latter
+# is a gen OUTPUT that the scan reads as its INPUT (get_success_folders: the list of folders to
+# scan). But a prior run's scan VERDICTS (scan_results.json/scan_results/, *_eval_results.json,
+# *_metrics.json) must NOT go up: the scan's resume filter skips any instance already in
+# scan_results/, so shipping them makes the host re-report the OLD (e.g. QEMU) result instead of
+# scanning natively. --delete keeps the remote tree in sync.
+RSYNC --delete \
+  --exclude 'scan_results.json' --exclude 'scan_results/' \
+  --exclude '*_eval_results.json' --exclude '*_metrics.json' \
+  "$GEN_DIR/" "$HOST:$RROOT/$GEN_DIR/"
 RSYNC "$DATASET" "$HOST:$RROOT/$DATASET"
+# Belt and suspenders on a reused host: drop only stale verdicts (never processed_instances.json)
+# so the scan re-runs from scratch.
+SSH "cd '$RROOT/$GEN_DIR' && rm -rf scan_results scan_results.json ./*_eval_results.json ./*_metrics.json"
 
-echo "[verify] run security_scan on the host ($WORKERS workers, native amd64)"
+echo "[verify] run security_scan on the host ($WORKERS workers, $NUM_CYCLES cycle(s), native amd64)"
 # --run_step security_scan does NOT touch the agents; the --agent/--agent_name pair is only there
 # to satisfy invoke.py's argument parser, and --github_token is unused by the scan.
+# --num_cycles MUST match what gen_code produced, or evaluate_stability_score KeyErrors on the
+# empty cycle_results for cycles that were never generated (A.S.E run_evaluate.py:400).
 SSH "cd '$RROOT' && .venv/bin/python invoke.py \
       --run_step security_scan --agent --agent_name '$AGENT' \
-      --batch_id '$BATCH' --dataset_path '$DATASET' \
+      --batch_id '$BATCH' --dataset_path '$DATASET' --num_cycles '$NUM_CYCLES' \
       --output_dir '$OUTDIR' --max_workers '$WORKERS' --github_token unused"
 
 echo "[verify] fetch verdicts back"
