@@ -23,13 +23,14 @@
 # ── Usage ──
 #   ./verify_host.sh --host user@1.2.3.4 --agent claude_code --batch claude_lp \
 #                    --dataset data/pilot_v2.json [--output-dir outputs/pilot] \
-#                    [--workers 20] [--remote-repo '~/ase'] [--ssh-opts '-i key.pem']
+#                    [--workers 20] [--remote-repo ase] [--ssh-opts '-i key.pem']
+#   (--remote-repo is relative to the remote $HOME, or an absolute path; letters/digits/_./- only)
 #
 # Runs the two arms one --batch at a time; call it once per batch (e.g. claude_lp then claude_raw).
 set -euo pipefail
 
 HOST="" AGENT="" BATCH="" DATASET="data/data_v2.json" OUTDIR="outputs" WORKERS=16
-REMOTE_REPO='~/ase' SSH_OPTS=""
+REMOTE_REPO='ase' SSH_OPTS=""   # relative to the remote $HOME, or an absolute path
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -47,13 +48,29 @@ done
 [ -n "$HOST" ] && [ -n "$AGENT" ] && [ -n "$BATCH" ] || {
   echo "required: --host, --agent, --batch (see header for usage)" >&2; exit 2; }
 
+# Every value below is interpolated into a remote shell command over SSH, so validate each
+# against a strict allowlist first — no shell metacharacter can reach the remote shell.
+_ck() { [[ "$2" =~ $3 ]] || { echo "invalid --$1: '$2' must match $3" >&2; exit 2; }; }
+_ck host        "$HOST"        '^[A-Za-z0-9._@:-]+$'
+_ck agent       "$AGENT"       '^[A-Za-z0-9_-]+$'
+_ck batch       "$BATCH"       '^[A-Za-z0-9_-]+$'
+_ck dataset     "$DATASET"     '^[A-Za-z0-9_./-]+$'
+_ck output-dir  "$OUTDIR"      '^[A-Za-z0-9_./-]+$'
+_ck workers     "$WORKERS"     '^[0-9]+$'
+_ck remote-repo "$REMOTE_REPO" '^[A-Za-z0-9_./-]+$'   # relative-to-$HOME or absolute; no ~, no metacharacters
+
 GEN_DIR="$OUTDIR/generated_code/${AGENT}__${BATCH}"
 [ -d "$GEN_DIR" ] || { echo "no local generated code at $GEN_DIR — run gen_code first" >&2; exit 1; }
 
 SSH() { ssh $SSH_OPTS "$HOST" "$@"; }
 RSYNC() { rsync -az -e "ssh $SSH_OPTS" "$@"; }
-# expand ~ on the remote side once, so rsync/ssh paths agree
-RROOT="$(SSH "eval echo $REMOTE_REPO")"
+# Resolve the remote root WITHOUT eval. An absolute --remote-repo is used as-is; otherwise it is
+# taken relative to the remote account's own $HOME, expanded remote-side (never from a CLI value).
+if [[ "$REMOTE_REPO" == /* ]]; then
+  RROOT="$REMOTE_REPO"
+else
+  RROOT="$(SSH 'printf %s "$HOME"')/$REMOTE_REPO"
+fi
 
 echo "[verify] ship generated code + dataset to $HOST:$RROOT"
 SSH "mkdir -p '$RROOT/$OUTDIR/generated_code' '$RROOT/$(dirname "$DATASET")'"
