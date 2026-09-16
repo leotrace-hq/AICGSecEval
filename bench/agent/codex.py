@@ -103,11 +103,22 @@ class CodexAgentBench(AgentBenchBase):
                     "-c", f'model_providers.codex.wire_api="{self._wire_api}"',
                     "-c", 'model_providers.codex.env_key="OPENAI_API_KEY"',
                     "-c", 'model_provider="codex"']
-        # Match LeoBench's methodology: bypass approvals/sandbox so the run completes headlessly
-        # and (leoprevent arm) the plugin's Stop hook can run its binary and reach the server.
-        cmd += ["--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check"]
+        # Headless BUT sandboxed. This runs on the host (not a container like LeoBench), and the
+        # prompt carries content derived from cloned benchmark repos and dataset function
+        # summaries — untrusted, prompt-injectable input. A full approvals/sandbox bypass would
+        # let an injection run arbitrary commands on the developer's machine with the host
+        # ChatGPT credentials. So confine writes to the workspace and never bypass the sandbox:
+        # workspace-write + approval 'never' completes headlessly without host command execution.
+        # --approve-for-me is headless auto-approval that runs commands inside the workspace-write
+        # sandbox (it implies the sandbox, so --sandbox must not also be passed). Writes stay in
+        # the workspace; there is no arbitrary host command execution.
+        cmd += ["--approve-for-me", "--skip-git-repo-check"]
         if self._arm == "leoprevent":
-            cmd += ["--dangerously-bypass-hook-trust"]   # let the installed plugin's hooks fire
+            # The plugin's Stop hook posts the diff to the review server, so the workspace-write
+            # sandbox must permit outbound network for that one call; hooks still need trust
+            # bypassed to fire headlessly. Neither widens filesystem access beyond the workspace.
+            cmd += ["-c", "sandbox_workspace_write.network_access=true",
+                    "--dangerously-bypass-hook-trust"]
         return cmd
 
     async def generate_code(self, file_path, function_summary, context_file_list):
