@@ -10,6 +10,14 @@ OUT=outputs/stage3
 DS=data/run25_v2.json
 TAG=ase-verify
 
+# On-demand by DEFAULT, not Spot. This job is ~20 minutes end to end, so the Spot discount saves
+# roughly a dollar — while a mid-run reclamation costs the whole run. That is not hypothetical:
+# on 2026-09-17 AWS reclaimed the host 7 minutes in (Server.SpotInstanceTermination, "no Spot
+# capacity available"), killing all four batches. ec2_up.sh's Spot->on-demand fallback does NOT
+# cover this: it only retries a failed LAUNCH, and cannot protect an instance already running.
+# Opt back into Spot with ON_DEMAND=0 for long or genuinely restartable jobs.
+: "${ON_DEMAND:=1}"; export ON_DEMAND
+
 sweep() {  # independent check: 0 if truly nothing left, 1 if any resource remains
   local left=0
   [ -e .ase_verify_host.json ] && { echo "[sweep] STATE FILE STILL PRESENT"; left=1; }
@@ -38,7 +46,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "[v4] === LAUNCH @ $(date '+%T') ==="
+echo "[v4] === LAUNCH @ $(date '+%T') === (market=$([ "$ON_DEMAND" = 1 ] && echo on-demand || echo spot))"
 ./ec2_up.sh 2>&1 | sed 's/^/[up] /' || { echo "[v4] launch failed"; exit 1; }
 IID=$(python3 -c "import json;print(json.load(open('.ase_verify_host.json'))['instance_id'])")
 KEY=$(python3 -c "import json;print(json.load(open('.ase_verify_host.json'))['key_file'])")
