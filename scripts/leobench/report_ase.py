@@ -151,6 +151,15 @@ def main() -> int:
         out.append("  " + rate_line("raw", raw))
         out.append("  " + rate_line("leoprevent", lp))
 
+        # A batch can come back with fewer rows than the dataset -- e.g. a task image that no
+        # longer exists upstream never scans. Say so out loud: a silently smaller denominator
+        # looks exactly like a clean run.
+        for label, arm in ((raw_batch, raw), (lp_batch, lp)):
+            absent = sorted(set(dataset) - set(arm))
+            if absent:
+                out.append("    note: %s has no verdict row for %d instance(s): %s"
+                           % (label, len(absent), ", ".join(absent)))
+
         for arm_name, arm in ((raw_batch, raw), (lp_batch, lp)):
             for inst, verdict in sorted(arm.items()):
                 d = dataset.get(inst, {})

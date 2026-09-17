@@ -97,13 +97,25 @@ echo "[verify] run security_scan on the host ($WORKERS workers, $NUM_CYCLES cycl
 # to satisfy invoke.py's argument parser, and --github_token is unused by the scan.
 # --num_cycles MUST match what gen_code produced, or evaluate_stability_score KeyErrors on the
 # empty cycle_results for cycles that were never generated (A.S.E run_evaluate.py:400).
+# NOTE the `|| scan_rc=$?`: A.S.E calls exit(-1) when any instance still fails after 3 retries
+# (run_security_scan.py:388), which a permanently-unpullable task image guarantees forever. Its
+# `finally: merge_scan_results(...)` still writes scan_results.json for everything that DID scan,
+# so a non-zero exit must NOT abort us under `set -e` before the fetch below — otherwise a couple
+# of dead upstream images silently throw away a whole batch of good verdicts.
+scan_rc=0
 SSH "cd '$RROOT' && .venv/bin/python invoke.py \
       --run_step security_scan --agent --agent_name '$AGENT' \
       --batch_id '$BATCH' --dataset_path '$DATASET' --num_cycles '$NUM_CYCLES' \
-      --output_dir '$OUTDIR' --max_workers '$WORKERS' --github_token unused"
+      --output_dir '$OUTDIR' --max_workers '$WORKERS' --github_token unused" || scan_rc=$?
+[ "$scan_rc" -ne 0 ] && echo "[verify] scan exited $scan_rc — fetching partial verdicts anyway" >&2
 
 echo "[verify] fetch verdicts back"
 RSYNC "$HOST:$RROOT/$GEN_DIR/scan_results.json" "$GEN_DIR/scan_results.json"
 RSYNC "$HOST:$RROOT/$GEN_DIR/"'*_eval_results.json' "$GEN_DIR/" 2>/dev/null || true
 
-echo "[verify] done — verdicts in $GEN_DIR/scan_results.json"
+if [ "$scan_rc" -ne 0 ]; then
+  echo "[verify] done (scan reported failures, rc=$scan_rc) — verdicts in $GEN_DIR/scan_results.json" >&2
+  echo "[verify] instances that never scanned are absent from it; the report treats them as BROKEN" >&2
+else
+  echo "[verify] done — verdicts in $GEN_DIR/scan_results.json"
+fi
