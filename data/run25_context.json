@@ -1,0 +1,1267 @@
+[
+  {
+    "instance_id": "Choser_CVE-2017-9047",
+    "hits": [
+      {
+        "docid": "valid.c",
+        "startline": 1250,
+        "endline": 1337
+      },
+      {
+        "docid": "include/libxml/tree.h",
+        "startline": 304,
+        "endline": 314
+      },
+      {
+        "docid": "include/libxml/tree.h",
+        "startline": 274,
+        "endline": 283
+      },
+      {
+        "docid": "include/libxml/xmlstring.h",
+        "startline": 85,
+        "endline": 85
+      }
+    ],
+    "function_summary": "This code segment handles the XML_ELEMENT_CONTENT_ELEMENT case in the xmlSnprintfElementContent function. It formats an element name (potentially namespace-prefixed) into a character buffer for DTD content model representation. The code:\n1. Checks if a namespace prefix exists and validates sufficient buffer space (at least xmlStrlen(prefix) + 10 bytes)\n2. If space is insufficient, appends \"...\" and returns early\n3. If space is sufficient, appends the prefix followed by a colon separator\n4. Then checks buffer space for the element name (at least xmlStrlen(name) + 10 bytes)\n\nThe +10 safety margin accounts for additional formatting characters (colon, occurrence indicators like ?, *, +, parentheses) that may be added later in the function."
+  },
+  {
+    "instance_id": "zju-cve-2023-5341",
+    "hits": [
+      {
+        "docid": "coders/bmp.c",
+        "startline": 690,
+        "endline": 699
+      },
+      {
+        "docid": "coders/bmp.c",
+        "startline": 127,
+        "endline": 163
+      },
+      {
+        "docid": "coders/bmp.c",
+        "startline": 578,
+        "endline": 643
+      },
+      {
+        "docid": "coders/bmp.c",
+        "startline": 683,
+        "endline": 686
+      },
+      {
+        "docid": "MagickCore/exception-private.h",
+        "startline": 69,
+        "endline": 79
+      },
+      {
+        "docid": "MagickCore/locale_.h",
+        "startline": 54,
+        "endline": 58
+      },
+      {
+        "docid": "MagickCore/image.h",
+        "startline": 96,
+        "endline": 102
+      }
+    ],
+    "function_summary": "Lines 695-699 perform validation checks on the BMP header for \"CI\" (Color Icon) format images. The code validates that the header size (bmp_info.size) must be exactly 12, 40, or 64 bytes for CI format files. If the header size doesn't match these allowed values, it throws a CorruptImageError exception and terminates image reading, returning NULL to indicate failure."
+  },
+  {
+    "instance_id": "Choser_CVE-2017-7303",
+    "hits": [
+      {
+        "docid": "binutils/objcopy.c",
+        "startline": 3522,
+        "endline": 3564
+      },
+      {
+        "docid": "bfd/bfd-in2.h",
+        "startline": 2470,
+        "endline": 2490
+      },
+      {
+        "docid": "bfd/bfd-in2.h",
+        "startline": 6473,
+        "endline": 6473
+      },
+      {
+        "docid": "bfd/bfd-in2.h",
+        "startline": 1689,
+        "endline": 1705
+      },
+      {
+        "docid": "bfd/bfd-in2.h",
+        "startline": 6114,
+        "endline": 6190
+      },
+      {
+        "docid": "binutils/objcopy.c",
+        "startline": 86,
+        "endline": 87
+      },
+      {
+        "docid": "binutils/objcopy.c",
+        "startline": 3533,
+        "endline": 3548
+      }
+    ],
+    "function_summary": "The code segment in binutils/objcopy.c lines 3552-3564 iterates through an array of relocation entries (`relpp`) and marks their associated symbols with the `BSF_KEEP` flag to prevent them from being stripped. For each relocation entry, it checks that the symbol pointer is not NULL and that the symbol does not belong to one of three special BFD sections (common, absolute, or undefined). If these conditions are met, it sets the `BSF_KEEP` flag on the symbol by performing a bitwise OR operation on the symbol's flags field. This ensures that symbols actually used in relocations are preserved during the object file copy operation."
+  },
+  {
+    "instance_id": "Choser_CVE-2021-29279",
+    "hits": [
+      {
+        "docid": "src/filters/reframe_flac.c",
+        "startline": 30,
+        "endline": 76
+      },
+      {
+        "docid": "src/filters/reframe_flac.c",
+        "startline": 113,
+        "endline": 148
+      },
+      {
+        "docid": "src/filters/reframe_flac.c",
+        "startline": 150,
+        "endline": 182
+      },
+      {
+        "docid": "src/filters/reframe_flac.c",
+        "startline": 252,
+        "endline": 262
+      },
+      {
+        "docid": "src/filters/reframe_flac.c",
+        "startline": 265,
+        "endline": 306
+      },
+      {
+        "docid": "src/filters/reframe_flac.c",
+        "startline": 308,
+        "endline": 315
+      },
+      {
+        "docid": "src/filters/reframe_flac.c",
+        "startline": 317,
+        "endline": 378
+      },
+      {
+        "docid": "src/filters/reframe_flac.c",
+        "startline": 380,
+        "endline": 605
+      },
+      {
+        "docid": "include/gpac/filters.h",
+        "startline": 110,
+        "endline": 114
+      },
+      {
+        "docid": "include/gpac/filters.h",
+        "startline": 1,
+        "endline": 2000
+      },
+      {
+        "docid": "include/gpac/constants.h",
+        "startline": 496,
+        "endline": 496
+      },
+      {
+        "docid": "include/gpac/constants.h",
+        "startline": 54,
+        "endline": 107
+      },
+      {
+        "docid": "include/gpac/bitstream.h",
+        "startline": 1,
+        "endline": 500
+      }
+    ],
+    "function_summary": "Lines 390-545 of src/filters/reframe_flac.c contain the core packet processing loop of the `flac_dmx_process()` function, which is the main entry point for the FLAC reframer filter. This code segment performs the following operations:\n\n1. **Duration and State Validation** (lines 392-396): Checks and updates file duration metadata, then validates that the output PID is configured and the filter is in playing state.\n\n2. **Input Packet Retrieval and EOS Handling** (lines 398-412): Retrieves the next input packet from the input PID. If no packet is available, checks for End-of-Stream (EOS) condition. If EOS is reached and the buffer is empty, propagates EOS to the output PID and returns GF_EOS. Otherwise, sets a flag for final flushing.\n\n3. **Buffer Management** (lines 414-436): \n   - Saves the current buffer size for later CTS update logic\n   - If not resuming from a previous position, retrieves packet data and size\n   - Tracks byte offsets for seek operations, handling discontinuities\n   - Reallocates the internal FLAC buffer (`ctx->flac_buffer`) if needed to accommodate new packet data\n   - Appends packet data to the buffer\n\n4. **CTS (Composition Timestamp) Handling** (lines 439-446): If the input PID provides timestamps, retrieves the CTS from the current packet. If CTS is invalid, resets the previous packet size to avoid incorrect timestamp updates.\n\n5. **Buffer Parsing Setup** (lines 448-455): Initializes pointers and counters for buffer parsing. If resuming from a previous position (due to insufficient output buffer space), adjusts the start pointer and remaining size accordingly.\n\n6. **FLAC Stream Initialization** (lines 490-534): If the filter is not yet initialized (first packet or after reset):\n   - Searches for the FLAC magic signature \"fLaC\" (0x664C6143)\n   - Parses FLAC metadata blocks (STREAMINFO and others) using a bitstream parser\n   - Extracts codec parameters: sample rate, channel count, bits per sample, block size, total sample count\n   - Configures the output PID with codec properties via `flac_dmx_check_pid()`\n   - Advances the buffer past the initialization data\n   - Sets the initialized flag\n\n7. **Frame Synchronization and Validation** (lines 457-487, 537-542): Searches for valid FLAC frame headers by:\n   - Looking for the 0xFF 0xF8 sync pattern\n   - Validating the frame header using `flac_parse_header()` which includes CRC8 verification\n   - If an invalid frame is detected, logs a warning, drops bytes, and resyncs\n\nThis code segment is critical for converting a raw FLAC bitstream into properly framed packets with accurate timing information, enabling downstream filters to decode and process the audio data correctly."
+  },
+  {
+    "instance_id": "Choser_CVE-2024-0321",
+    "hits": [
+      {
+        "docid": "src/filters/load_text.c",
+        "startline": 307,
+        "endline": 409
+      },
+      {
+        "docid": "src/filters/load_text.c",
+        "startline": 186,
+        "endline": 234
+      },
+      {
+        "docid": "include/gpac/utf.h",
+        "startline": 53,
+        "endline": 53
+      },
+      {
+        "docid": "include/gpac/utf.h",
+        "startline": 63,
+        "endline": 74
+      },
+      {
+        "docid": "include/gpac/tools.h",
+        "startline": 2352,
+        "endline": 2352
+      },
+      {
+        "docid": "include/gpac/tools.h",
+        "startline": 1,
+        "endline": 100
+      },
+      {
+        "docid": "src/filters/load_text.c",
+        "startline": 63,
+        "endline": 146
+      },
+      {
+        "docid": "src/filters/load_text.c",
+        "startline": 177,
+        "endline": 183
+      },
+      {
+        "docid": "include/gpac/constants.h",
+        "startline": 1,
+        "endline": 100
+      }
+    ],
+    "function_summary": "This code segment (lines 376-382) handles buffer overflow protection during UTF-8 encoding conversion. It checks if the intermediate conversion buffer `szLineConv` would overflow before continuing the conversion process. When the buffer is at capacity (checked via `GF_ARRAY_LENGTH(szLineConv)`), it logs a debug warning and truncates the buffer by setting the last valid position to `j = GF_ARRAY_LENGTH(szLineConv) - 1` and null-terminating at `szLineConv[j] = 0`. Finally, it copies the converted content from `szLineConv` back to `szLine` and returns the original file read status."
+  },
+  {
+    "instance_id": "krrrlww_CVE-2019-15903",
+    "hits": [
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 4052,
+        "endline": 5257
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 516,
+        "endline": 617
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 173,
+        "endline": 373
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 218,
+        "endline": 314
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 265,
+        "endline": 278
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 297,
+        "endline": 373
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 336,
+        "endline": 363
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 396,
+        "endline": 449
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 462,
+        "endline": 511
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 594,
+        "endline": 624
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 697,
+        "endline": 821
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 823,
+        "endline": 884
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 886,
+        "endline": 996
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 1041,
+        "endline": 1290
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 1292,
+        "endline": 1337
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 1339,
+        "endline": 1389
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 1391,
+        "endline": 1412
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 1414,
+        "endline": 1433
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 2555,
+        "endline": 3001
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 3007,
+        "endline": 3023
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 3035,
+        "endline": 3416
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 3421,
+        "endline": 3528
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 3556,
+        "endline": 3664
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 3764,
+        "endline": 3792
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 3794,
+        "endline": 3875
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 3877,
+        "endline": 3909
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 5268,
+        "endline": 5280
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 5282,
+        "endline": 5453
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 5455,
+        "endline": 5619
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 5621,
+        "endline": 5640
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 5642,
+        "endline": 5667
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 5669,
+        "endline": 5687
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 5689,
+        "endline": 5733
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 5735,
+        "endline": 5777
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 5779,
+        "endline": 5806
+      },
+      {
+        "docid": "expat/lib/xmlparse.c",
+        "startline": 5808,
+        "endline": 5856
+      },
+      {
+        "docid": "expat/lib/xmlrole.h",
+        "startline": 48,
+        "endline": 113
+      },
+      {
+        "docid": "expat/lib/xmlrole.h",
+        "startline": 115,
+        "endline": 126
+      },
+      {
+        "docid": "expat/lib/xmlrole.h",
+        "startline": 132,
+        "endline": 133
+      },
+      {
+        "docid": "expat/lib/xmltok.h",
+        "startline": 40,
+        "endline": 118
+      },
+      {
+        "docid": "expat/lib/xmltok.h",
+        "startline": 126,
+        "endline": 131
+      },
+      {
+        "docid": "expat/lib/xmltok.h",
+        "startline": 133,
+        "endline": 136
+      },
+      {
+        "docid": "expat/lib/xmltok.h",
+        "startline": 142,
+        "endline": 196
+      },
+      {
+        "docid": "expat/lib/xmltok.h",
+        "startline": 219,
+        "endline": 276
+      },
+      {
+        "docid": "expat/lib/expat.h",
+        "startline": 72,
+        "endline": 119
+      },
+      {
+        "docid": "expat/lib/expat.h",
+        "startline": 121,
+        "endline": 164
+      },
+      {
+        "docid": "expat/lib/expat.h",
+        "startline": 207,
+        "endline": 211
+      },
+      {
+        "docid": "expat/lib/expat.h",
+        "startline": 262,
+        "endline": 277
+      },
+      {
+        "docid": "expat/lib/expat.h",
+        "startline": 333,
+        "endline": 338
+      },
+      {
+        "docid": "expat/lib/expat.h",
+        "startline": 360,
+        "endline": 365
+      },
+      {
+        "docid": "expat/lib/internal.h",
+        "startline": 52,
+        "endline": 102
+      },
+      {
+        "docid": "expat/lib/internal.h",
+        "startline": 104,
+        "endline": 106
+      }
+    ],
+    "function_summary": "The code segment in lines 4048-5254 of `expat/lib/xmlparse.c` contains a set of XML parser processor functions that handle different parsing states within the Expat XML parser library. These functions form a state machine for processing XML documents, specifically:\n\n1. **entityValueProcessor (4052-4083, XML_DTD only)**: Processes entity values within DTD parameter entities. It tokenizes the entity value content and calls `doProlog` to handle the tokens.\n\n2. **prologProcessor (4087-4094)**: Entry point for XML prolog parsing. Tokenizes the input and delegates to `doProlog` for role-based processing.\n\n3. **doProlog (4096-5076)**: The core prolog/DTD processing function containing a large switch statement (150+ role cases) that handles XML declarations, DOCTYPE declarations, entity declarations, element type declarations, attribute list declarations, notation declarations, and parameter entity references. It processes tokens returned by `XmlPrologTok` and interprets their semantic roles using `XmlTokenRole`, invoking appropriate user handlers and building internal parser state (DTD, entities, elements, attributes).\n\n4. **epilogProcessor (5078-5140)**: Processes content after the document's root element, allowing only whitespace, processing instructions, and comments.\n\n5. **processInternalEntity (5142-5196)**: Handles expansion of internal entities (both parameter and general entities). It creates an OPEN_INTERNAL_ENTITY structure, manages entity recursion, and delegates to either `doProlog` or `doContent` depending on entity type.\n\n6. **internalEntityProcessor (5198-5257)**: Continues processing of suspended internal entities that couldn't be fully processed in one pass. Resumes from where processing was suspended and switches back to the appropriate processor when done.\n\nThese processor functions use the `enum XML_Error` return type and communicate through parser state fields (m_processor function pointer, m_eventPtr, m_parsingStatus, etc.). They handle character encoding via ENCODING structures, manage memory through STRING_POOL structures, maintain DTD information in hash tables, and support conditional XML_DTD compilation for parameter entity handling."
+  },
+  {
+    "instance_id": "Choser_CVE-2018-19664",
+    "hits": [
+      {
+        "docid": "wrbmp.c",
+        "startline": 498,
+        "endline": 511
+      },
+      {
+        "docid": "cdjpeg.h",
+        "startline": 156,
+        "endline": 157
+      },
+      {
+        "docid": "jpeglib.h",
+        "startline": 217,
+        "endline": 242
+      },
+      {
+        "docid": "jmorecfg.h",
+        "startline": 368,
+        "endline": 394
+      },
+      {
+        "docid": "cderror.h",
+        "startline": 48,
+        "endline": 48
+      },
+      {
+        "docid": "wrbmp.c",
+        "startline": 96,
+        "endline": 171
+      },
+      {
+        "docid": "wrbmp.c",
+        "startline": 173,
+        "endline": 206
+      },
+      {
+        "docid": "wrbmp.c",
+        "startline": 50,
+        "endline": 74
+      },
+      {
+        "docid": "jinclude.h",
+        "startline": 72,
+        "endline": 76
+      },
+      {
+        "docid": "jinclude.h",
+        "startline": 85,
+        "endline": 88
+      }
+    ],
+    "function_summary": "Lines 498-511 in wrbmp.c implement output format selection logic based on the JPEG decompression output color space. The code determines which pixel row writing function (put_gray_rows or put_pixel_rows) should be assigned to handle the image data, based on whether the output is grayscale, quantized color, RGB, RGB565, or CMYK. If the output color space is unsupported for BMP format, the code triggers an error exit with JERR_BMP_COLORSPACE."
+  },
+  {
+    "instance_id": "Choser_CVE-2021-20205",
+    "hits": [
+      {
+        "docid": "rdgif.c",
+        "startline": 406,
+        "endline": 449
+      },
+      {
+        "docid": "rdgif.c",
+        "startline": 85,
+        "endline": 124
+      },
+      {
+        "docid": "rdgif.c",
+        "startline": 138,
+        "endline": 148
+      },
+      {
+        "docid": "rdgif.c",
+        "startline": 60,
+        "endline": 66
+      },
+      {
+        "docid": "rdgif.c",
+        "startline": 45,
+        "endline": 46
+      },
+      {
+        "docid": "rdgif.c",
+        "startline": 343,
+        "endline": 358
+      },
+      {
+        "docid": "rdgif.c",
+        "startline": 362,
+        "endline": 373
+      },
+      {
+        "docid": "rdgif.c",
+        "startline": 167,
+        "endline": 175
+      },
+      {
+        "docid": "rdgif.c",
+        "startline": 49,
+        "endline": 54
+      },
+      {
+        "docid": "rdgif.c",
+        "startline": 41,
+        "endline": 42
+      },
+      {
+        "docid": "cdjpeg.h",
+        "startline": 28,
+        "endline": 39
+      },
+      {
+        "docid": "cderror.h",
+        "startline": 59,
+        "endline": 74
+      },
+      {
+        "docid": "jmorecfg.h",
+        "startline": 99,
+        "endline": 107
+      },
+      {
+        "docid": "jmorecfg.h",
+        "startline": 159,
+        "endline": 161
+      },
+      {
+        "docid": "jmorecfg.h",
+        "startline": 206,
+        "endline": 214
+      },
+      {
+        "docid": "jpeglib.h",
+        "startline": 290,
+        "endline": 292
+      }
+    ],
+    "function_summary": "This code segment (lines 406-449 in rdgif.c) reads and parses the Local Image Descriptor of a GIF file after locating the image separator character (',') in a scanning loop. It extracts the image dimensions (width and height), determines if the image is interlaced, checks for a local colormap, reads it if present, and retrieves the LZW minimum code size. The code validates these values and sets up the source structure accordingly. The loop continues scanning the file until it finds an image separator, handling GIF terminators (';'), extension blocks ('!'), and unexpected characters along the way."
+  },
+  {
+    "instance_id": "GioldDiorld_CVE-2016-9831",
+    "hits": [
+      {
+        "docid": "util/listjpeg.c",
+        "startline": 24,
+        "endline": 62
+      },
+      {
+        "docid": "util/listjpeg.c",
+        "startline": 2,
+        "endline": 3
+      },
+      {
+        "docid": "util/listjpeg.c",
+        "startline": 5,
+        "endline": 22
+      }
+    ],
+    "function_summary": "Reads the length field of a JPEG block segment (2 bytes in big-endian format), prints the length value, then skips over the remaining block data by reading and discarding (length - 2) bytes."
+  },
+  {
+    "instance_id": "GioldDiorld_CVE-2017-9988",
+    "hits": [
+      {
+        "docid": "util/parser.c",
+        "startline": 3077,
+        "endline": 3084
+      },
+      {
+        "docid": "util/swftypes.h",
+        "startline": 1808,
+        "endline": 1812
+      },
+      {
+        "docid": "util/swftypes.h",
+        "startline": 29,
+        "endline": 29
+      },
+      {
+        "docid": "util/read.h",
+        "startline": 21,
+        "endline": 21
+      },
+      {
+        "docid": "util/read.c",
+        "startline": 330,
+        "endline": 348
+      }
+    ],
+    "function_summary": "This code segment parses an ABC (ActionScript Byte Code) namespace set structure from a SWF file. It reads the count of namespaces in the set, allocates memory for an array to hold namespace indices, and then iterates through each element to read the encoded namespace index values from the file stream."
+  },
+  {
+    "instance_id": "GioldDiorld_CVE-2018-7868",
+    "hits": [
+      {
+        "docid": "util/decompile.c",
+        "startline": 306,
+        "endline": 369
+      },
+      {
+        "docid": "util/decompile.c",
+        "startline": 288,
+        "endline": 301
+      },
+      {
+        "docid": "util/decompile.c",
+        "startline": 48,
+        "endline": 49
+      },
+      {
+        "docid": "util/decompile.c",
+        "startline": 234,
+        "endline": 271
+      },
+      {
+        "docid": "util/decompile.c",
+        "startline": 372,
+        "endline": 420
+      },
+      {
+        "docid": "util/swftypes.h",
+        "startline": 121,
+        "endline": 136
+      }
+    ],
+    "function_summary": "The code segment is the `getString()` function, which converts a SWF_ACTIONPUSHPARAM structure into a string representation. It examines the Type field of the parameter and returns the appropriate string representation for different ActionScript value types (strings, numbers, registers, booleans, null, undefined, constants from the constant pool, and variables). The function allocates memory for string results and handles special escaping for constant pool strings using helper functions."
+  },
+  {
+    "instance_id": "Choser_CVE-2014-0160",
+    "hits": [
+      {
+        "docid": "ssl/d1_both.c",
+        "startline": 1462,
+        "endline": 1499
+      },
+      {
+        "docid": "ssl/ssl_locl.h",
+        "startline": 249,
+        "endline": 252
+      },
+      {
+        "docid": "ssl/ssl3.h",
+        "startline": 325,
+        "endline": 325
+      },
+      {
+        "docid": "ssl/ssl3.h",
+        "startline": 343,
+        "endline": 344
+      },
+      {
+        "docid": "ssl/ssl3.h",
+        "startline": 348,
+        "endline": 358
+      },
+      {
+        "docid": "ssl/d1_pkt.c",
+        "startline": 1460,
+        "endline": 1468
+      },
+      {
+        "docid": "crypto/rand/rand.h",
+        "startline": 103,
+        "endline": 103
+      },
+      {
+        "docid": "crypto/crypto.h",
+        "startline": 368,
+        "endline": 377
+      }
+    ],
+    "function_summary": "This code segment processes a DTLS heartbeat request message. It reads the heartbeat type and payload length from the received data, invokes an optional message callback, and if the heartbeat type is TLS1_HB_REQUEST, it allocates a buffer to construct a heartbeat response. The response includes the message type (TLS1_HB_RESPONSE), the payload length, a copy of the received payload, and random padding bytes. It then sends this response using dtls1_write_bytes, invokes the message callback again if present, and frees the allocated buffer."
+  },
+  {
+    "instance_id": "zju-cve-2024-56408",
+    "hits": [
+      {
+        "docid": "samples/Engineering/Convert-Online.php",
+        "startline": 75,
+        "endline": 91
+      },
+      {
+        "docid": "samples/Engineering/Convert-Online.php",
+        "startline": 16,
+        "endline": 28
+      },
+      {
+        "docid": "samples/Engineering/Convert-Online.php",
+        "startline": 3,
+        "endline": 3
+      },
+      {
+        "docid": "samples/Engineering/Convert-Online.php",
+        "startline": 5,
+        "endline": 5
+      },
+      {
+        "docid": "src/PhpSpreadsheet/Calculation/Engineering/ConvertUOM.php",
+        "startline": 530,
+        "endline": 567
+      },
+      {
+        "docid": "src/PhpSpreadsheet/Calculation/Engineering/ConvertUOM.php",
+        "startline": 32,
+        "endline": 199
+      },
+      {
+        "docid": "src/PhpSpreadsheet/Calculation/Engineering/ConvertUOM.php",
+        "startline": 472,
+        "endline": 485
+      },
+      {
+        "docid": "src/PhpSpreadsheet/Settings.php",
+        "startline": 88,
+        "endline": 91
+      }
+    ],
+    "function_summary": "This code segment outputs a formatted conversion result message to the user. It displays the original quantity with its source unit name, the conversion result, and the destination unit name. If the validation fails (either source or destination unit is not found in the current category), it displays an error message requesting the user to enter a quantity and select valid units."
+  },
+  {
+    "instance_id": "zju-cve-2024-56145",
+    "hits": [
+      {
+        "docid": "src/services/Entries.php",
+        "startline": 919,
+        "endline": 1037
+      },
+      {
+        "docid": "src/services/Entries.php",
+        "startline": 980,
+        "endline": 990
+      },
+      {
+        "docid": "src/elements/Entry.php",
+        "startline": 1468,
+        "endline": 1472
+      },
+      {
+        "docid": "src/elements/Entry.php",
+        "startline": 828,
+        "endline": 828
+      },
+      {
+        "docid": "src/elements/Entry.php",
+        "startline": 835,
+        "endline": 835
+      },
+      {
+        "docid": "src/elements/db/EntryQuery.php",
+        "startline": 1,
+        "endline": 1273
+      },
+      {
+        "docid": "src/models/Section.php",
+        "startline": 1,
+        "endline": 450
+      },
+      {
+        "docid": "src/models/EntryType.php",
+        "startline": 1,
+        "endline": 430
+      }
+    ],
+    "function_summary": "Lines 980-990 in src/services/Entries.php implement a fallback mechanism within the `_ensureSingleEntry()` method to recover entries that were soft-deleted when their entry type was removed. This code executes only if no valid entry was found in previous attempts (lines 962-973). It queries for trashed entries with the `deletedWithEntryType` flag set to true, indicating they were deleted alongside their entry type rather than explicitly by a user. If such an entry is found, the code assigns it the first available entry type ID from the section's current entry types, preparing it for potential restoration. This ensures Single sections can maintain their required single entry even when entry types have been modified or restored."
+  },
+  {
+    "instance_id": "zju-cve-2021-3901",
+    "hits": [
+      {
+        "docid": "routes/web.php",
+        "startline": 194,
+        "endline": 210
+      },
+      {
+        "docid": "app/Http/Controllers/Bill/IndexController.php",
+        "startline": 1,
+        "endline": 286
+      },
+      {
+        "docid": "bootstrap/app.php",
+        "startline": 69,
+        "endline": 104
+      }
+    ],
+    "function_summary": "This code segment defines a route group for the Bills Controller in a Laravel application. It creates GET and POST route endpoints for managing bills (recurring payment obligations). The routes handle listing bills, rescanning bills for transactions, creating new bills, editing existing bills, deleting bills, showing bill details, storing new bills, updating bills, destroying bills, and setting the display order of bills. All routes require user authentication with full privileges ('user-full-auth' middleware), use controllers in the 'FireflyIII\\Http\\Controllers' namespace with a '/bills' URL prefix, and route names prefixed with 'bills.'."
+  },
+  {
+    "instance_id": "zju-cve-2018-1000019",
+    "hits": [
+      {
+        "docid": "interface/billing/get_claim_file.php",
+        "startline": 1,
+        "endline": 6
+      }
+    ],
+    "function_summary": "Lines 1-6 of interface/billing/get_claim_file.php contain a GPL license header comment that specifies the software licensing terms: stating the program is free software, can be redistributed and modified under the GNU General Public License version 2 or later."
+  },
+  {
+    "instance_id": "tsinghua_phpipam_phpipam_cve_2022_1223",
+    "hits": [
+      {
+        "docid": "app/subnets/addresses/export-subnet.php",
+        "startline": 28,
+        "endline": 33
+      },
+      {
+        "docid": "functions/classes/class.Tools.php",
+        "startline": 719,
+        "endline": 748
+      },
+      {
+        "docid": "functions/classes/class.Common.php",
+        "startline": 1,
+        "endline": 850
+      },
+      {
+        "docid": "functions/classes/class.Addresses.php",
+        "startline": 1323,
+        "endline": 1354
+      }
+    ],
+    "function_summary": "Lines 28-35 of app/subnets/addresses/export-subnet.php perform data retrieval operations for subnet export functionality. The code: (1) fetches subnet details from the database using the 'subnetId' from $_GET parameter via Tools->fetch_object(); (2) retrieves all IP addresses belonging to that subnet using Addresses->fetch_subnet_addresses() with ascending order by IP address; (3) initializes an empty array if no addresses are found; (4) fetches custom field definitions for IP addresses from the database using Tools->fetch_custom_fields()."
+  },
+  {
+    "instance_id": "zju-cve-2021-26120",
+    "hits": [
+      {
+        "docid": "tests/UnitTests/SecurityTests/SecurityTest.php",
+        "startline": 386,
+        "endline": 392
+      },
+      {
+        "docid": "tests/UnitTests/SecurityTests/SecurityTest.php",
+        "startline": 19,
+        "endline": 27
+      },
+      {
+        "docid": "tests/UnitTests/SecurityTests/SecurityTest.php",
+        "startline": 16,
+        "endline": 16
+      },
+      {
+        "docid": "tests/PHPUnit_Smarty.php",
+        "startline": 10,
+        "endline": 24
+      },
+      {
+        "docid": "tests/PHPUnit_Smarty.php",
+        "startline": 128,
+        "endline": 181
+      },
+      {
+        "docid": "tests/PHPUnit_Smarty.php",
+        "startline": 663,
+        "endline": 665
+      },
+      {
+        "docid": "libs/Smarty.class.php",
+        "startline": 109,
+        "endline": 109
+      },
+      {
+        "docid": "libs/Smarty.class.php",
+        "startline": 363,
+        "endline": 370
+      },
+      {
+        "docid": "libs/Smarty.class.php",
+        "startline": 735,
+        "endline": 739
+      },
+      {
+        "docid": "libs/Smarty.class.php",
+        "startline": 1000,
+        "endline": 1050
+      },
+      {
+        "docid": "libs/sysplugins/smarty_internal_templatebase.php",
+        "startline": 131,
+        "endline": 135
+      },
+      {
+        "docid": "libs/sysplugins/smarty_internal_compile_private_special_variable.php",
+        "startline": 29,
+        "endline": 129
+      },
+      {
+        "docid": "libs/sysplugins/smarty_internal_compile_private_special_variable.php",
+        "startline": 83,
+        "endline": 88
+      },
+      {
+        "docid": "libs/sysplugins/smarty_security.php",
+        "startline": 22,
+        "endline": 22
+      },
+      {
+        "docid": "libs/sysplugins/smarty_security.php",
+        "startline": 404,
+        "endline": 416
+      },
+      {
+        "docid": "libs/sysplugins/smarty_security.php",
+        "startline": 160,
+        "endline": 160
+      },
+      {
+        "docid": "libs/sysplugins/smartycompilerexception.php",
+        "startline": 8,
+        "endline": 45
+      }
+    ],
+    "function_summary": "This code is a unit test that verifies security policy enforcement in Smarty templates. Specifically, it tests that when security mode is enabled, accessing the special Smarty variable `$smarty.template_object` from within a template is blocked and throws a SmartyCompilerException. The test sets up an expectation for this exception and then attempts to display a template that accesses the forbidden variable."
+  },
+  {
+    "instance_id": "zju-CVE-2022-1511",
+    "hits": [
+      {
+        "docid": "app/Http/Controllers/Assets/AssetsController.php",
+        "startline": 862,
+        "endline": 873
+      },
+      {
+        "docid": "app/Models/CheckoutRequest.php",
+        "startline": 1,
+        "endline": 51
+      },
+      {
+        "docid": "app/Models/Asset.php",
+        "startline": 1,
+        "endline": 51
+      },
+      {
+        "docid": "app/Models/User.php",
+        "startline": 1,
+        "endline": 51
+      },
+      {
+        "docid": "app/Models/User.php",
+        "startline": 439,
+        "endline": 442
+      }
+    ],
+    "function_summary": "This code retrieves a collection of CheckoutRequest records with eager-loaded user and requestedItem relationships, filters out canceled requests (whereNull('canceled_at')), and applies an optional filter by user_id if provided. The with('user', 'requestedItem') clause is duplicated unnecessarily. If a user_id is provided, the query filters by that user but incorrectly uses get() instead of continuing the query chain. Finally, it orders the results by created_at in descending order and retrieves all matching records."
+  },
+  {
+    "instance_id": "Capsa_CVE-2022-23457",
+    "hits": [
+      {
+        "docid": "src/main/java/org/owasp/esapi/reference/DefaultValidator.java",
+        "startline": 447,
+        "endline": 483
+      },
+      {
+        "docid": "src/main/java/org/owasp/esapi/reference/DefaultValidator.java",
+        "startline": 1182,
+        "endline": 1184
+      },
+      {
+        "docid": "src/main/java/org/owasp/esapi/reference/DefaultValidator.java",
+        "startline": 88,
+        "endline": 100
+      },
+      {
+        "docid": "src/main/java/org/owasp/esapi/Validator.java",
+        "startline": 252,
+        "endline": 276
+      },
+      {
+        "docid": "src/main/java/org/owasp/esapi/errors/ValidationException.java",
+        "startline": 1,
+        "endline": 115
+      },
+      {
+        "docid": "src/main/java/org/owasp/esapi/Encoder.java",
+        "startline": 174,
+        "endline": 274
+      },
+      {
+        "docid": "src/main/java/org/owasp/esapi/reference/DefaultEncoder.java",
+        "startline": 104,
+        "endline": 119
+      },
+      {
+        "docid": "src/main/java/org/owasp/esapi/reference/DefaultEncoder.java",
+        "startline": 124,
+        "endline": 202
+      },
+      {
+        "docid": "src/main/java/org/owasp/esapi/SecurityConfiguration.java",
+        "startline": 121,
+        "endline": 125
+      },
+      {
+        "docid": "src/main/java/org/owasp/esapi/ESAPI.java",
+        "startline": 96,
+        "endline": 102
+      },
+      {
+        "docid": "src/main/java/org/owasp/esapi/ESAPI.java",
+        "startline": 175,
+        "endline": 186
+      }
+    ],
+    "function_summary": "This code segment is the `getValidDirectoryPath` method that validates directory paths in ESAPI. It ensures that a given input path represents a valid directory that exists within a specified parent directory. The method performs the following validation steps:\n1. Checks if input is empty/null and handles according to allowNull parameter\n2. Creates a File object from the input path\n3. Validates that the directory exists and is actually a directory (not a file)\n4. Validates that the parent parameter exists and is a directory\n5. Ensures the input directory is within the parent directory using canonical paths (prevents directory traversal attacks)\n6. Validates the canonical path against the \"DirectoryName\" validation rule using the fileValidator\n7. Ensures the canonical path matches the original input (prevents path manipulation)\n8. Returns the canonical path if all validations pass, otherwise throws ValidationException\n\nThis is a security-critical method designed to prevent directory traversal attacks and ensure path integrity."
+  },
+  {
+    "instance_id": "sjtu_CVE-2018-12036",
+    "hits": [
+      {
+        "docid": "core/src/main/java/org/owasp/dependencycheck/utils/ExtractionUtil.java",
+        "startline": 86,
+        "endline": 122
+      },
+      {
+        "docid": "utils/src/main/java/org/owasp/dependencycheck/utils/ExtractionException.java",
+        "startline": 1,
+        "endline": 68
+      },
+      {
+        "docid": "core/src/main/java/org/owasp/dependencycheck/Engine.java",
+        "startline": 1011,
+        "endline": 1023
+      },
+      {
+        "docid": "core/src/main/java/org/owasp/dependencycheck/utils/ExtractionUtil.java",
+        "startline": 53,
+        "endline": 53
+      },
+      {
+        "docid": "core/src/main/java/org/owasp/dependencycheck/utils/ExtractionUtil.java",
+        "startline": 20,
+        "endline": 40
+      }
+    ],
+    "function_summary": "This code segment is the main extraction logic of the `extractFiles` method that extracts files from a ZIP archive to a specified directory. It iterates through all entries in the ZIP file, creates directories for directory entries, and extracts file entries to disk. For each file entry, it optionally checks if the file should be extracted based on whether the Engine accepts the file type (when an Engine is provided). The method uses try-with-resources to automatically close the ZIP input stream and handles various I/O exceptions by logging them and throwing ExtractionException with descriptive messages."
+  },
+  {
+    "instance_id": "tsinghua_drawio_cve_2022_1767",
+    "hits": [
+      {
+        "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+        "startline": 247,
+        "endline": 282
+      },
+      {
+        "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+        "startline": 64,
+        "endline": 202
+      },
+      {
+        "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+        "startline": 32,
+        "endline": 51
+      },
+      {
+        "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+        "startline": 208,
+        "endline": 234
+      }
+    ],
+    "function_summary": "This code segment (lines 247-269) implements CORS (Cross-Origin Resource Sharing) domain validation logic for a proxy servlet. It examines the HTTP referer header and user agent to determine if the request originates from authorized domains (draw.io, diagrams.net, quipelements.com, or Confluence/Jira servers). If the referer matches specific regex patterns, it extracts and returns the appropriate CORS domain string; otherwise, it returns null to deny the request. The function uses case-insensitive matching and substring extraction to construct the allowed origin for the Access-Control-Allow-Origin header."
+  },
+  {
+    "instance_id": "zju-cve-2024-27306",
+    "hits": [
+      {
+        "docid": "aiohttp/web_urldispatcher.py",
+        "startline": 682,
+        "endline": 716
+      },
+      {
+        "docid": "aiohttp/web_urldispatcher.py",
+        "startline": 517,
+        "endline": 681
+      },
+      {
+        "docid": "aiohttp/web_urldispatcher.py",
+        "startline": 36,
+        "endline": 36
+      },
+      {
+        "docid": "aiohttp/web_response.py",
+        "startline": 670,
+        "endline": 671
+      }
+    ],
+    "function_summary": "This code segment implements the `_directory_as_html` method of the `StaticResource` class, which generates an HTML directory listing page. It takes a directory path as input, iterates through all files and subdirectories within it, and constructs an HTML page with clickable links to each item. Directory entries are marked with a trailing slash. The method performs path calculations relative to the static resource's base directory and assembles a complete HTML document with a title showing \"Index of /path/to/dir\"."
+  },
+  {
+    "instance_id": "sjtu_cve-2024-0520",
+    "hits": [
+      {
+        "docid": "mlflow/utils/request_utils.py",
+        "startline": 49,
+        "endline": 60
+      },
+      {
+        "docid": "mlflow/utils/request_utils.py",
+        "startline": 193,
+        "endline": 231
+      },
+      {
+        "docid": "mlflow/utils/rest_utils.py",
+        "startline": 16,
+        "endline": 21
+      },
+      {
+        "docid": "mlflow/utils/file_utils.py",
+        "startline": 851,
+        "endline": 856
+      },
+      {
+        "docid": "mlflow/data/dataset_source.py",
+        "startline": 8,
+        "endline": 34
+      },
+      {
+        "docid": "mlflow/exceptions.py",
+        "startline": 64,
+        "endline": 109
+      },
+      {
+        "docid": "mlflow/protos/databricks_pb2.py",
+        "startline": 42,
+        "endline": 42
+      }
+    ],
+    "function_summary": "The code segment (lines 37-74) defines the `load` method of the `HTTPDatasetSource` class. This method downloads a dataset from an HTTP/HTTPS URL to the local filesystem. It performs the following operations:\n\n1. Makes an HTTP GET request to the dataset URL using streaming mode\n2. Validates the response status\n3. Determines the filename for the downloaded file by:\n   - First checking the `Content-Disposition` header for a filename\n   - If not found, extracting the basename from the URL path\n   - Falling back to \"dataset_source\" if neither is available\n4. Creates a temporary directory if no destination path is provided\n5. Constructs the full destination path by joining the destination directory with the filename\n6. Downloads the response content in 1 MB chunks and writes them to the local file\n7. Returns the local filesystem path to the downloaded file"
+  },
+  {
+    "instance_id": "tsinghua_lunary_ai_lunary_cve_2024_1738",
+    "hits": [
+      {
+        "docid": "packages/backend/src/api/v1/evaluations/index.ts",
+        "startline": 120,
+        "endline": 139
+      },
+      {
+        "docid": "packages/backend/src/utils/authorization.ts",
+        "startline": 19,
+        "endline": 42
+      },
+      {
+        "docid": "packages/backend/src/utils/koa.ts",
+        "startline": 8,
+        "endline": 12
+      },
+      {
+        "docid": "packages/backend/src/utils/db.ts",
+        "startline": 1,
+        "endline": 44
+      },
+      {
+        "docid": "packages/shared/access-control/roles.ts",
+        "startline": 1,
+        "endline": 23
+      },
+      {
+        "docid": "packages/shared/access-control/roles.ts",
+        "startline": 411,
+        "endline": 421
+      }
+    ],
+    "function_summary": "This code defines a GET endpoint `/evaluations/result/:evaluationId` that retrieves all evaluation results for a specific evaluation. It performs an access control check to verify the user has \"read\" permission for the \"evaluations\" resource, then executes a SQL query that joins three tables (evaluation_result, dataset_prompt, and dataset_prompt_variation) to fetch all results associated with the given evaluation ID. The query returns all columns from all three tables, with an aliased prompt_id field, and sends the results as JSON in the response body."
+  }
+]
