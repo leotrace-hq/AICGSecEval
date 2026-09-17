@@ -97,11 +97,17 @@ def transitions(raw: dict, lp: dict) -> dict:
     return out
 
 
+def group_key(value: str, key: str) -> str:
+    # run25_v2.json spells CWEs both ways (cwe-125 and CWE-125, 16 distinct strings for 14 real
+    # CWEs), which would split one CWE across two rows and halve both counts. Normalize.
+    return value.upper() if key == "cwe_id" else value
+
+
 def breakdown(title: str, key: str, insts: list, dataset: dict, raw: dict, lp: dict) -> list[str]:
     lines = [f"\n  by {title}:", "    %-18s %-22s %-22s" % ("", "raw", "leoprevent")]
     groups = defaultdict(list)
     for inst in insts:
-        groups[str(dataset.get(inst, {}).get(key, "?"))].append(inst)
+        groups[group_key(str(dataset.get(inst, {}).get(key, "?")), key)].append(inst)
     for g, members in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0])):
         cells = []
         for arm in (raw, lp):
