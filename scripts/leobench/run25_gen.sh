@@ -15,11 +15,15 @@ export LEOPREVENT_SERVER_URL=http://127.0.0.1:8787
 # A.S.E records the failure, moves on, and a later resume retries it.
 export GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=60
 
+# The token goes in the ENVIRONMENT, never on the command line: an argv token is world-readable
+# via `ps` for as long as the run lasts, and is captured verbatim into the tee'd log below.
+# invoke.py defaults --github_token to $GITHUB_TOKEN.
+export GITHUB_TOKEN; GITHUB_TOKEN=$(gh auth token)
+
 DS=data/run25_v2.json
 CTX=data/run25_context.json
 OUT=outputs/stage3
 PY=.venv/bin/python
-GH=$(gh auth token)
 LOGDIR="$OUT/_genlogs"; mkdir -p "$LOGDIR"
 
 run() {  # $1=agent_name  $2=arm  $3=batch_id
@@ -32,8 +36,8 @@ run() {  # $1=agent_name  $2=arm  $3=batch_id
   "$PY" invoke.py --run_step gen_code \
       --agent --agent_name "$agent" --arm "$arm" "${mflag[@]}" \
       --batch_id "$batch" --dataset_path "$DS" --retrieval_data_path "$CTX" \
-      --num_cycles 1 --output_dir "$OUT" --github_token "$GH" \
-      2>&1 | tee "$LOGDIR/${batch}.log"
+      --num_cycles 1 --output_dir "$OUT" \
+      2>&1 | sed -E 's/gh[pousr]_[A-Za-z0-9]{16,}/<REDACTED-GH-TOKEN>/g' | tee "$LOGDIR/${batch}.log"
   echo "[gen] $batch finished @ $(date '+%F %T')"
 }
 
