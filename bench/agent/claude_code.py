@@ -131,6 +131,12 @@ class ClaudeCodeAgentBench(AgentBenchBase):
             cwd=self.repo_dir,
             permission_mode="acceptEdits",
             env=env,
+            # Isolate from the OPERATOR's user-global config. Without this the SDK loads
+            # ~/.claude settings — including any globally-installed leoprevent@leotrace plugin —
+            # into EVERY session, which fires /review on the raw arm too and destroys the
+            # raw-vs-leoprevent contrast (the Claude-side twin of the Codex double-plugin bug).
+            # The leoprevent arm still gets the plugin via the explicit `plugins` list below.
+            setting_sources=[],
             plugins=plugins,
         )
 
