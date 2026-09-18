@@ -5,6 +5,8 @@ set -uo pipefail
 ASE=/Users/bbaukema/Documents/github/Tencent/AICGSecEval
 cd "$ASE"
 OUT=${OUT:-outputs/inscope}
+PIDDIR="$OUT/_genlogs"; . scripts/leobench/_procs.sh
+pid_write watchdog
 DS=${DS:-data/inscope_v2.json}
 LOG="$OUT/_genlogs/watchdog.log"
 TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))))")
@@ -27,18 +29,20 @@ while :; do
     say "both Claude batches complete ($r/$l) - watchdog exiting"
     exit 0
   fi
-  if ! pgrep -f "bash ./scripts/leobench/claude_windows.sh" >/dev/null; then
+  if ! pid_alive claude_windows claude_windows.sh; then
     # Do not start while another orchestrator holds the repo clones; claude_windows.sh has the
     # same guard, but starting it into a race and relying on its internal wait is sloppier.
-    if pgrep -f "bash ./scripts/leobench/run25_gen.sh" >/dev/null; then
+    if pid_alive run25_gen run25_gen.sh; then
       say "scheduler absent but another batch run is active - holding off"
     else
       say "scheduler NOT running with work left (raw $r/$TOTAL, lp $l/$TOTAL) - restarting it"
       nohup ./scripts/leobench/claude_windows.sh >> "$OUT/_genlogs/claude_windows_stdout.log" 2>&1 &
       sleep 10
-      pgrep -f "bash ./scripts/leobench/claude_windows.sh" >/dev/null \
-        && say "restarted ok (pid $(pgrep -f 'bash ./scripts/leobench/claude_windows.sh' | head -1))" \
-        || say "RESTART FAILED"
+      if pid_alive claude_windows claude_windows.sh; then
+        say "restarted ok (pid $(pid_of claude_windows))"
+      else
+        say "RESTART FAILED"
+      fi
     fi
   fi
   sleep 300

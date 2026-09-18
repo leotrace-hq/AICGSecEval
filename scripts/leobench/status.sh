@@ -24,7 +24,8 @@ case "$OUT" in /*) ;; *) OUT="$ASE/$OUT";; esac
 case "$DS"  in /*) ;; *) DS="$ASE/$DS";;  esac
 TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))))")
 
-if pgrep -f "bash ./scripts/leobench/run25_gen.sh" >/dev/null; then
+PIDDIR="$OUT/_genlogs"; . "$ASE/scripts/leobench/_procs.sh"
+if pid_alive run25_gen run25_gen.sh; then
   echo "STATUS: generating   (started $(grep -aom1 'GEN START @ [0-9: -]*' "$OUT/_genlogs/gen.log" 2>/dev/null | sed 's/GEN START @ //'))"
 else
   echo "STATUS: generation not running"

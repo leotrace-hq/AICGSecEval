@@ -17,6 +17,8 @@ cd "$ASE"
 DS=${DS:-data/inscope_v2.json}
 CTX=${CTX:-data/inscope_context.json}
 OUT=${OUT:-outputs/inscope}
+PIDDIR="$OUT/_genlogs"; . scripts/leobench/_procs.sh
+pid_write claude_windows
 LOG="$OUT/_genlogs/claude_windows.log"
 TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))))")
 
@@ -53,7 +55,7 @@ auth_broken() {  # a genuine auth failure, as distinct from a spent quota
 say "=== claude window scheduler starting (need $TOTAL per batch) ==="
 
 # Constraint 1: never overlap with another orchestrator.
-while pgrep -f "bash ./scripts/leobench/run25_gen.sh" >/dev/null; do
+while pid_alive run25_gen run25_gen.sh; do
   say "another batch run is active; waiting for it to finish before touching Claude"
   sleep 120
 done

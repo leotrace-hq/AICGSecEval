@@ -28,6 +28,8 @@ OUT=${OUT:-outputs/stage3}
 echo "### cohort: $DS ($(python3 -c "import json;print(len(json.load(open('$DS'))))") instances) -> $OUT ###"
 PY=.venv/bin/python
 LOGDIR="$OUT/_genlogs"; mkdir -p "$LOGDIR"
+PIDDIR="$LOGDIR"; . scripts/leobench/_procs.sh
+pid_write run25_gen
 
 # A batch that produced ZERO successful generations is never a normal outcome -- it means
 # something systemic (expired token, org policy change, exhausted subscription quota, dead
