@@ -1,0 +1,2789 @@
+[
+ {
+  "instance_id": "tsinghua_cpython_cve_2015_20107",
+  "hits": [
+   {
+    "docid": "Lib/mailcap.py",
+    "startline": 159,
+    "endline": 177
+   },
+   {
+    "docid": "Lib/mailcap.py",
+    "startline": 179,
+    "endline": 190
+   },
+   {
+    "docid": "Lib/mailcap.py",
+    "startline": 192,
+    "endline": 222
+   },
+   {
+    "docid": "Lib/mailcap.py",
+    "startline": 9,
+    "endline": 14
+   },
+   {
+    "docid": "Lib/mailcap.py",
+    "startline": 3,
+    "endline": 3
+   }
+  ],
+  "function_summary": "This code segment iterates through mailcap entries retrieved by the `lookup()` function to find a matching entry for a given MIME type. For each entry, it checks if a 'test' command exists and executes it using `os.system()` to validate the entry. If the test fails (non-zero exit code), it skips to the next entry. If the test passes or no test exists, it substitutes placeholders in the command string using the `subst()` function and returns the command along with the matching entry. If no match is found, it returns (None, None). The code is part of the `findmatch()` function which begins at line 159, and lines 179-183 show the start of the `lookup()` function that is called within this segment."
+ },
+ {
+  "instance_id": "sjtu_CVE-2019-3580",
+  "hits": [
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 1096,
+    "endline": 1105
+   },
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 395,
+    "endline": 408
+   },
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 514,
+    "endline": 522
+   },
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 606,
+    "endline": 621
+   },
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 655,
+    "endline": 662
+   },
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 702,
+    "endline": 709
+   },
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 1077,
+    "endline": 1084
+   },
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 456,
+    "endline": 464
+   },
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 131,
+    "endline": 131
+   },
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 232,
+    "endline": 247
+   },
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 249,
+    "endline": 273
+   },
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 1124,
+    "endline": 1157
+   },
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 1107,
+    "endline": 1117
+   },
+   {
+    "docid": "extensions/wikidata/module/scripts/dialogs/schema-alignment-dialog.js",
+    "startline": 322,
+    "endline": 393
+   },
+   {
+    "docid": "main/webapp/modules/core/scripts/util/misc.js",
+    "startline": 34,
+    "endline": 56
+   },
+   {
+    "docid": "main/webapp/modules/core/scripts/project.js",
+    "startline": 34,
+    "endline": 34
+   },
+   {
+    "docid": "main/webapp/modules/core/scripts/project.js",
+    "startline": 324,
+    "endline": 403
+   },
+   {
+    "docid": "main/webapp/modules/core/scripts/project/browsing-engine.js",
+    "startline": 157,
+    "endline": 169
+   }
+  ],
+  "function_summary": "This code segment (lines 1097-1104) is the `getJSON` function of the `SchemaAlignmentDialog` object. It collects all item documents from the schema alignment UI by iterating through DOM elements with the class `.wbs-item` within the `#schema-alignment-statements-container`, converts each item to JSON format using the `_itemToJSON` helper function, and returns a JSON object containing an array of these item documents and the Wikibase entity prefix URL."
+ },
+ {
+  "instance_id": "Capsa_CVE-2024-1593",
+  "hits": [
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 410,
+    "endline": 469
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 306,
+    "endline": 358
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 361,
+    "endline": 402
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 112,
+    "endline": 114
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 269,
+    "endline": 278
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 18,
+    "endline": 18
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 493,
+    "endline": 504
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 524,
+    "endline": 540
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 106,
+    "endline": 106
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 1,
+    "endline": 11
+   },
+   {
+    "docid": "mlflow/utils/uri.py",
+    "startline": 456,
+    "endline": 462
+   },
+   {
+    "docid": "mlflow/utils/proto_json_utils.py",
+    "startline": 105,
+    "endline": 122
+   },
+   {
+    "docid": "mlflow/utils/proto_json_utils.py",
+    "startline": 153,
+    "endline": 156
+   },
+   {
+    "docid": "mlflow/protos/service_pb2.py",
+    "startline": 188,
+    "endline": 201
+   },
+   {
+    "docid": "mlflow/store/tracking/abstract_store.py",
+    "startline": 93,
+    "endline": 104
+   }
+  ],
+  "function_summary": "This code segment implements the `_create_experiment` HTTP handler function for the MLflow tracking server. It processes HTTP requests to create a new experiment, validating the request parameters (name, artifact_location, tags), sanitizing the artifact location query string for security, calling the tracking store to create the experiment, and returning a JSON response containing the newly created experiment ID."
+ },
+ {
+  "instance_id": "zju-cve-2022-2732",
+  "hits": [
+   {
+    "docid": "interface/patient_file/summary/add_edit_amendments.php",
+    "startline": 1,
+    "endline": 30
+   },
+   {
+    "docid": "src/Common/Acl/AclMain.php",
+    "startline": 1,
+    "endline": 233
+   },
+   {
+    "docid": "interface/globals.php",
+    "startline": 292,
+    "endline": 298
+   },
+   {
+    "docid": "library/translation.inc.php",
+    "startline": 12,
+    "endline": 61
+   }
+  ],
+  "function_summary": "This code segment implements access control for the amendments feature by checking if the current user has permission to access the 'patients/amendment' section. If the user lacks permission, it renders an unauthorized error page using Twig template engine and terminates script execution. It also determines and stores boolean flags for edit and add access permissions to control subsequent operations within the amendments management interface."
+ },
+ {
+  "instance_id": "tsinghua_core_cve_2020_10254",
+  "hits": [
+   {
+    "docid": "apps/files_sharing/ajax/publicpreview.php",
+    "startline": 35,
+    "endline": 73
+   },
+   {
+    "docid": "lib/public/Share/IManager.php",
+    "startline": 186,
+    "endline": 194
+   },
+   {
+    "docid": "lib/public/Share/IShare.php",
+    "startline": 92,
+    "endline": 98
+   },
+   {
+    "docid": "lib/public/Share/IShare.php",
+    "startline": 125,
+    "endline": 132
+   },
+   {
+    "docid": "lib/public/Share/IShare.php",
+    "startline": 255,
+    "endline": 261
+   },
+   {
+    "docid": "lib/private/legacy/response.php",
+    "startline": 31,
+    "endline": 105
+   },
+   {
+    "docid": "lib/public/JSON.php",
+    "startline": 189,
+    "endline": 196
+   },
+   {
+    "docid": "lib/private/legacy/json.php",
+    "startline": 122,
+    "endline": 132
+   },
+   {
+    "docid": "lib/public/Util.php",
+    "startline": 149,
+    "endline": 158
+   },
+   {
+    "docid": "lib/private/Server.php",
+    "startline": 1314,
+    "endline": 1318
+   },
+   {
+    "docid": "lib/public/IServerContainer.php",
+    "startline": 311,
+    "endline": 316
+   },
+   {
+    "docid": "lib/private/legacy/user.php",
+    "startline": 257,
+    "endline": 259
+   },
+   {
+    "docid": "lib/base.php",
+    "startline": 1,
+    "endline": 50
+   }
+  ],
+  "function_summary": "This code segment validates and retrieves a shared item based on a public share token. First, it checks if the token parameter is empty (line 42-46), returning a 400 error if missing. Then it retrieves the share manager from the server container (line 48) and attempts to fetch the share by token (lines 49-55), catching ShareNotFound exceptions and returning a 404 error if the token is invalid. Next, it extracts the share owner's user ID from the share object (line 57-62), returning a 500 error if the owner is null. Finally, it verifies the user exists (line 64) and attempts to retrieve the file node associated with the share (lines 67-73), returning a 404 error if the file cannot be found."
+ },
+ {
+  "instance_id": "zju-cve-2022-0950",
+  "hits": [
+   {
+    "docid": "server/Application/Api/Controller/AttachmentController.class.php",
+    "startline": 112,
+    "endline": 115
+   },
+   {
+    "docid": "server/Application/Api/Model/AttachmentModel.class.php",
+    "startline": 291,
+    "endline": 320
+   },
+   {
+    "docid": "server/Application/Api/Controller/BaseController.class.php",
+    "startline": 120,
+    "endline": 142
+   },
+   {
+    "docid": "server/Application/Api/Conf/config.php",
+    "startline": 10,
+    "endline": 16
+   },
+   {
+    "docid": "server/ThinkPHP/Common/functions.php",
+    "startline": 271,
+    "endline": 404
+   },
+   {
+    "docid": "server/Application/Api/Controller/AttachmentController.class.php",
+    "startline": 94,
+    "endline": 122
+   },
+   {
+    "docid": "server/Application/Api/Model/AttachmentModel.class.php",
+    "startline": 56,
+    "endline": 127
+   }
+  ],
+  "function_summary": "This code segment validates the uploaded file's filename for security purposes. It checks if the filename contains dangerous file extensions (like .php, .svg, .htm, etc.) that could pose security risks. If a dangerous filename is detected, it sends an error response with code 10100 and message \"\u4e0d\u652f\u6301\u6b64\u6587\u4ef6\u7c7b\u578b\" (This file type is not supported), then returns false to halt the upload process."
+ },
+ {
+  "instance_id": "tsinghua_drawio_cve_2022_1722",
+  "hits": [
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 250,
+    "endline": 286
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 64,
+    "endline": 195
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 32,
+    "endline": 51
+   }
+  ],
+  "function_summary": "This code segment (lines 250-265) implements CORS (Cross-Origin Resource Sharing) domain validation for proxy requests. It examines the HTTP referer header to determine if the request originates from a trusted domain (draw.io or diagrams.net subdomains), and if so, extracts and returns the appropriate CORS domain string that should be included in the Access-Control-Allow-Origin response header. The method returns null for untrusted domains (which prevents CORS responses), a specific domain substring for trusted domains, or an empty string for Confluence/Jira proxy requests identified by either a specific referer or user-agent."
+ },
+ {
+  "instance_id": "zju-cve-2017-9841",
+  "hits": [
+   {
+    "docid": "src/Util/PHP/Default.php",
+    "startline": 30,
+    "endline": 68
+   },
+   {
+    "docid": "src/Util/PHP.php",
+    "startline": 65,
+    "endline": 65
+   },
+   {
+    "docid": "src/Util/PHP/Default.php",
+    "startline": 78,
+    "endline": 81
+   }
+  ],
+  "function_summary": "This code segment reads PHP code from the standard input stream (php://input) and executes it using eval(). The '?>' prefix before file_get_contents() allows the input to be treated as PHP code. This is used as an entry point script that receives PHP code via stdin and evaluates it in a separate PHP process, specifically when running under phpdbg SAPI."
+ },
+ {
+  "instance_id": "sjtu_cve-2024-0520",
+  "hits": [
+   {
+    "docid": "mlflow/utils/request_utils.py",
+    "startline": 49,
+    "endline": 60
+   },
+   {
+    "docid": "mlflow/utils/request_utils.py",
+    "startline": 193,
+    "endline": 231
+   },
+   {
+    "docid": "mlflow/utils/rest_utils.py",
+    "startline": 16,
+    "endline": 21
+   },
+   {
+    "docid": "mlflow/utils/file_utils.py",
+    "startline": 851,
+    "endline": 856
+   },
+   {
+    "docid": "mlflow/data/dataset_source.py",
+    "startline": 8,
+    "endline": 34
+   },
+   {
+    "docid": "mlflow/exceptions.py",
+    "startline": 64,
+    "endline": 109
+   },
+   {
+    "docid": "mlflow/protos/databricks_pb2.py",
+    "startline": 42,
+    "endline": 42
+   }
+  ],
+  "function_summary": "The code segment (lines 37-74) defines the `load` method of the `HTTPDatasetSource` class. This method downloads a dataset from an HTTP/HTTPS URL to the local filesystem. It performs the following operations:\n\n1. Makes an HTTP GET request to the dataset URL using streaming mode\n2. Validates the response status\n3. Determines the filename for the downloaded file by:\n   - First checking the `Content-Disposition` header for a filename\n   - If not found, extracting the basename from the URL path\n   - Falling back to \"dataset_source\" if neither is available\n4. Creates a temporary directory if no destination path is provided\n5. Constructs the full destination path by joining the destination directory with the filename\n6. Downloads the response content in 1 MB chunks and writes them to the local file\n7. Returns the local filesystem path to the downloaded file"
+ },
+ {
+  "instance_id": "zju-cve-2018-1000019",
+  "hits": [
+   {
+    "docid": "interface/billing/get_claim_file.php",
+    "startline": 1,
+    "endline": 6
+   }
+  ],
+  "function_summary": "Lines 1-6 of interface/billing/get_claim_file.php contain a GPL license header comment that specifies the software licensing terms: stating the program is free software, can be redistributed and modified under the GNU General Public License version 2 or later."
+ },
+ {
+  "instance_id": "zju-cve-2021-26120",
+  "hits": [
+   {
+    "docid": "tests/UnitTests/SecurityTests/SecurityTest.php",
+    "startline": 386,
+    "endline": 392
+   },
+   {
+    "docid": "tests/UnitTests/SecurityTests/SecurityTest.php",
+    "startline": 19,
+    "endline": 27
+   },
+   {
+    "docid": "tests/UnitTests/SecurityTests/SecurityTest.php",
+    "startline": 16,
+    "endline": 16
+   },
+   {
+    "docid": "tests/PHPUnit_Smarty.php",
+    "startline": 10,
+    "endline": 24
+   },
+   {
+    "docid": "tests/PHPUnit_Smarty.php",
+    "startline": 128,
+    "endline": 181
+   },
+   {
+    "docid": "tests/PHPUnit_Smarty.php",
+    "startline": 663,
+    "endline": 665
+   },
+   {
+    "docid": "libs/Smarty.class.php",
+    "startline": 109,
+    "endline": 109
+   },
+   {
+    "docid": "libs/Smarty.class.php",
+    "startline": 363,
+    "endline": 370
+   },
+   {
+    "docid": "libs/Smarty.class.php",
+    "startline": 735,
+    "endline": 739
+   },
+   {
+    "docid": "libs/Smarty.class.php",
+    "startline": 1000,
+    "endline": 1050
+   },
+   {
+    "docid": "libs/sysplugins/smarty_internal_templatebase.php",
+    "startline": 131,
+    "endline": 135
+   },
+   {
+    "docid": "libs/sysplugins/smarty_internal_compile_private_special_variable.php",
+    "startline": 29,
+    "endline": 129
+   },
+   {
+    "docid": "libs/sysplugins/smarty_internal_compile_private_special_variable.php",
+    "startline": 83,
+    "endline": 88
+   },
+   {
+    "docid": "libs/sysplugins/smarty_security.php",
+    "startline": 22,
+    "endline": 22
+   },
+   {
+    "docid": "libs/sysplugins/smarty_security.php",
+    "startline": 404,
+    "endline": 416
+   },
+   {
+    "docid": "libs/sysplugins/smarty_security.php",
+    "startline": 160,
+    "endline": 160
+   },
+   {
+    "docid": "libs/sysplugins/smartycompilerexception.php",
+    "startline": 8,
+    "endline": 45
+   }
+  ],
+  "function_summary": "This code is a unit test that verifies security policy enforcement in Smarty templates. Specifically, it tests that when security mode is enabled, accessing the special Smarty variable `$smarty.template_object` from within a template is blocked and throws a SmartyCompilerException. The test sets up an expectation for this exception and then attempts to display a template that accesses the forbidden variable."
+ },
+ {
+  "instance_id": "zju-cve-2024-4041",
+  "hits": [
+   {
+    "docid": "src/Controller/Frontend.php",
+    "startline": 200,
+    "endline": 261
+   },
+   {
+    "docid": "src/Controller/Base.php",
+    "startline": 439,
+    "endline": 442
+   },
+   {
+    "docid": "src/Storage/EntityManager.php",
+    "startline": 504,
+    "endline": 517
+   },
+   {
+    "docid": "src/Controller/Frontend.php",
+    "startline": 209,
+    "endline": 228
+   },
+   {
+    "docid": "src/Storage/EntityManager.php",
+    "startline": 104,
+    "endline": 109
+   },
+   {
+    "docid": "src/Storage/Collection/Relations.php",
+    "startline": 36,
+    "endline": 70
+   },
+   {
+    "docid": "src/Storage/Collection/Taxonomy.php",
+    "startline": 36,
+    "endline": 70
+   },
+   {
+    "docid": "src/Storage/Entity/Content.php",
+    "startline": 1,
+    "endline": 467
+   },
+   {
+    "docid": "src/Storage/Entity/Relations.php",
+    "startline": 1,
+    "endline": 132
+   },
+   {
+    "docid": "src/Storage/Entity/Taxonomy.php",
+    "startline": 1,
+    "endline": 146
+   },
+   {
+    "docid": "src/Storage/Mapping/ContentType.php",
+    "startline": 1,
+    "endline": 64
+   }
+  ],
+  "function_summary": "Lines 205-208 retrieve the content type configuration and all form values from the POST request in the preview controller method. Specifically:\n- Line 206: Retrieves the content type configuration array/object for the given content type slug using the inherited getContentType() method\n- Line 207: Retrieves all POST request parameters (form data) submitted for content preview"
+ },
+ {
+  "instance_id": "sjtu_CVE-2022-4583",
+  "hits": [
+   {
+    "docid": "src/main/java/org/lemsml/jlems/io/util/JUtil.java",
+    "startline": 200,
+    "endline": 235
+   },
+   {
+    "docid": "src/main/java/org/lemsml/jlems/core/logging/E.java",
+    "startline": 1,
+    "endline": 468
+   }
+  ],
+  "function_summary": "This code segment is a method that extracts all contents of a JAR file to a specified output directory. It iterates through all JAR entries, creates directories for directory entries, and extracts file entries to the filesystem while skipping META-INF files. For each file entry, it reads the input stream from the JAR and writes it byte-by-byte to the output file."
+ },
+ {
+  "instance_id": "zju-cve-2024-56145",
+  "hits": [
+   {
+    "docid": "src/services/Entries.php",
+    "startline": 919,
+    "endline": 1037
+   },
+   {
+    "docid": "src/services/Entries.php",
+    "startline": 980,
+    "endline": 990
+   },
+   {
+    "docid": "src/elements/Entry.php",
+    "startline": 1468,
+    "endline": 1472
+   },
+   {
+    "docid": "src/elements/Entry.php",
+    "startline": 828,
+    "endline": 828
+   },
+   {
+    "docid": "src/elements/Entry.php",
+    "startline": 835,
+    "endline": 835
+   },
+   {
+    "docid": "src/elements/db/EntryQuery.php",
+    "startline": 1,
+    "endline": 1273
+   },
+   {
+    "docid": "src/models/Section.php",
+    "startline": 1,
+    "endline": 450
+   },
+   {
+    "docid": "src/models/EntryType.php",
+    "startline": 1,
+    "endline": 430
+   }
+  ],
+  "function_summary": "Lines 980-990 in src/services/Entries.php implement a fallback mechanism within the `_ensureSingleEntry()` method to recover entries that were soft-deleted when their entry type was removed. This code executes only if no valid entry was found in previous attempts (lines 962-973). It queries for trashed entries with the `deletedWithEntryType` flag set to true, indicating they were deleted alongside their entry type rather than explicitly by a user. If such an entry is found, the code assigns it the first available entry type ID from the section's current entry types, preparing it for potential restoration. This ensures Single sections can maintain their required single entry even when entry types have been modified or restored."
+ },
+ {
+  "instance_id": "zju-cve-2025-34086",
+  "hits": [
+   {
+    "docid": "src/Controller/Async/FilesystemManager.php",
+    "startline": 383,
+    "endline": 418
+   },
+   {
+    "docid": "src/Controller/Base.php",
+    "startline": 319,
+    "endline": 322
+   },
+   {
+    "docid": "src/Controller/Base.php",
+    "startline": 157,
+    "endline": 160
+   },
+   {
+    "docid": "src/Controller/Base.php",
+    "startline": 36,
+    "endline": 67
+   },
+   {
+    "docid": "src/Users.php",
+    "startline": 336,
+    "endline": 343
+   },
+   {
+    "docid": "src/Controller/Base.php",
+    "startline": 360,
+    "endline": 374
+   },
+   {
+    "docid": "src/Controller/Async/FilesystemManager.php",
+    "startline": 428,
+    "endline": 439
+   },
+   {
+    "docid": "src/Controller/Async/FilesystemManager.php",
+    "startline": 449,
+    "endline": 455
+   },
+   {
+    "docid": "src/Controller/Async/FilesystemManager.php",
+    "startline": 462,
+    "endline": 473
+   },
+   {
+    "docid": "src/Controller/Async/FilesystemManager.php",
+    "startline": 480,
+    "endline": 483
+   },
+   {
+    "docid": "src/Controller/Async/FilesystemManager.php",
+    "startline": 490,
+    "endline": 498
+   }
+  ],
+  "function_summary": "This code segment validates that a directory exists before allowing it to be renamed. It calls `$this->filesystem()->getDir()` to retrieve a directory object using a namespace-prefixed path, then checks if the directory exists by testing the truthiness of the returned value. If the directory does not exist or the path points to a non-directory, it returns a JSON error response with HTTP status 400 (Bad Request) and an error message indicating that only directories can be renamed with this method."
+ },
+ {
+  "instance_id": "zju-cve-2023-34448",
+  "hits": [
+   {
+    "docid": "system/src/Grav/Common/Twig/Extension/GravExtension.php",
+    "startline": 882,
+    "endline": 916
+   },
+   {
+    "docid": "system/src/Grav/Common/Language/Language.php",
+    "startline": 482,
+    "endline": 528
+   },
+   {
+    "docid": "system/src/Grav/Common/Config/Config.php",
+    "startline": 18,
+    "endline": 86
+   },
+   {
+    "docid": "system/src/Grav/Common/Twig/Extension/GravExtension.php",
+    "startline": 73,
+    "endline": 90
+   },
+   {
+    "docid": "system/src/Grav/Common/Twig/Extension/GravExtension.php",
+    "startline": 27,
+    "endline": 50
+   }
+  ],
+  "function_summary": "This code segment is part of the `translate()` method in GravExtension.php. Lines 908-911 handle translation functionality in Twig templates. Specifically:\n\nLine 909: Calls `$this->grav['language']->translate($args)` to translate the arguments using Grav's language service.\n\nLines 911-915: If the system's language debug mode is enabled (`system.languages.debug` is true), wraps the translated text in a `<span>` element with CSS class \"translate-debug\" and a tooltip showing the original translation key (`$args[0]`). Otherwise, returns the plain translation.\n\nThe code retrieves translated text from the Language service and optionally wraps it in debug markup when debugging is enabled."
+ },
+ {
+  "instance_id": "zju-cve-2019-3968",
+  "hits": [
+   {
+    "docid": "contrib/forms/scanned_notes/new.php",
+    "startline": 35,
+    "endline": 36
+   },
+   {
+    "docid": "interface/globals.php",
+    "startline": 163,
+    "endline": 163
+   },
+   {
+    "docid": "interface/globals.php",
+    "startline": 602,
+    "endline": 602
+   },
+   {
+    "docid": "interface/globals.php",
+    "startline": 610,
+    "endline": 610
+   },
+   {
+    "docid": "interface/globals.php",
+    "startline": 89,
+    "endline": 89
+   },
+   {
+    "docid": "contrib/forms/scanned_notes/new.php",
+    "startline": 24,
+    "endline": 27
+   },
+   {
+    "docid": "contrib/forms/scanned_notes/new.php",
+    "startline": 31,
+    "endline": 32
+   },
+   {
+    "docid": "contrib/forms/scanned_notes/new.php",
+    "startline": 40,
+    "endline": 96
+   },
+   {
+    "docid": "library/forms.inc",
+    "startline": 41,
+    "endline": 81
+   },
+   {
+    "docid": "library/sql.inc",
+    "startline": 234,
+    "endline": 252
+   },
+   {
+    "docid": "library/sql.inc",
+    "startline": 99,
+    "endline": 114
+   },
+   {
+    "docid": "library/sql.inc",
+    "startline": 265,
+    "endline": 288
+   }
+  ],
+  "function_summary": "This code segment performs input retrieval and path construction for a scanned notes form. Line 35 retrieves the form ID from the GET parameter 'id' without validation or sanitization. Line 36 constructs a file system path to the patient's encounter documents directory by concatenating the global site directory, the patient ID ($pid), and a static subdirectory path. These values are used later in the script for database operations and file management related to scanned medical notes."
+ },
+ {
+  "instance_id": "zju-cve-2021-3900",
+  "hits": [
+   {
+    "docid": "routes/web.php",
+    "startline": 946,
+    "endline": 961
+   },
+   {
+    "docid": "app/Http/Controllers/RuleGroup/EditController.php",
+    "startline": 1,
+    "endline": 161
+   },
+   {
+    "docid": "app/Http/Controllers/RuleGroup/CreateController.php",
+    "startline": 1,
+    "endline": 108
+   },
+   {
+    "docid": "app/Http/Controllers/RuleGroup/DeleteController.php",
+    "startline": 1,
+    "endline": 103
+   },
+   {
+    "docid": "app/Http/Controllers/RuleGroup/ExecutionController.php",
+    "startline": 1,
+    "endline": 118
+   },
+   {
+    "docid": "app/Models/RuleGroup.php",
+    "startline": 1,
+    "endline": 134
+   },
+   {
+    "docid": "app/Repositories/RuleGroup/RuleGroupRepositoryInterface.php",
+    "startline": 1,
+    "endline": 185
+   },
+   {
+    "docid": "app/Http/Controllers/Controller.php",
+    "startline": 1,
+    "endline": 116
+   },
+   {
+    "docid": "app/Support/Http/Controllers/UserNavigation.php",
+    "startline": 1,
+    "endline": 173
+   },
+   {
+    "docid": "bootstrap/app.php",
+    "startline": 69,
+    "endline": 100
+   }
+  ],
+  "function_summary": "This code segment defines five GET route definitions within a route group for rule group management. The routes handle: creating a new rule group (line 949), editing an existing rule group (line 950), deleting a rule group (line 951), moving a rule group up in order (line 952), moving a rule group down in order (line 953), and selecting transactions to apply a rule group to (line 954). All routes are namespaced under 'FireflyIII\\Http\\Controllers' with prefix 'rule-groups', middleware 'user-full-auth', and route names prefixed with 'rule-groups.'. The {ruleGroup} parameter uses Laravel's route model binding to automatically resolve RuleGroup model instances."
+ },
+ {
+  "instance_id": "sjtu_cve-2023-6831",
+  "hits": [
+   {
+    "docid": "mlflow/utils/uri.py",
+    "startline": 422,
+    "endline": 446
+   },
+   {
+    "docid": "mlflow/utils/uri.py",
+    "startline": 419,
+    "endline": 419
+   },
+   {
+    "docid": "mlflow/utils/uri.py",
+    "startline": 64,
+    "endline": 65
+   },
+   {
+    "docid": "mlflow/utils/uri.py",
+    "startline": 1,
+    "endline": 13
+   },
+   {
+    "docid": "mlflow/utils/file_utils.py",
+    "startline": 618,
+    "endline": 630
+   },
+   {
+    "docid": "mlflow/exceptions.py",
+    "startline": 64,
+    "endline": 109
+   },
+   {
+    "docid": "mlflow/protos/databricks_pb2.py",
+    "startline": 42,
+    "endline": 42
+   }
+  ],
+  "function_summary": "This code segment is a security validation function that checks whether a file path is safe to use in file operations. It prevents path traversal attacks by validating that the path: (1) does not contain hash symbols ('#' or '%23'), (2) does not contain OS-specific path separators other than forward slash '/', (3) does not contain '..' components that could navigate to parent directories, (4) is not an absolute path (on either POSIX or Windows systems), and (5) does not contain Windows drive letters (e.g., 'C:'). If any validation fails, it raises an MlflowException with INVALID_PARAMETER_VALUE error code."
+ },
+ {
+  "instance_id": "tsinghua_phpipam_phpipam_cve_2022_1223",
+  "hits": [
+   {
+    "docid": "app/subnets/addresses/export-subnet.php",
+    "startline": 28,
+    "endline": 33
+   },
+   {
+    "docid": "functions/classes/class.Tools.php",
+    "startline": 719,
+    "endline": 748
+   },
+   {
+    "docid": "functions/classes/class.Common.php",
+    "startline": 1,
+    "endline": 850
+   },
+   {
+    "docid": "functions/classes/class.Addresses.php",
+    "startline": 1323,
+    "endline": 1354
+   }
+  ],
+  "function_summary": "Lines 28-35 of app/subnets/addresses/export-subnet.php perform data retrieval operations for subnet export functionality. The code: (1) fetches subnet details from the database using the 'subnetId' from $_GET parameter via Tools->fetch_object(); (2) retrieves all IP addresses belonging to that subnet using Addresses->fetch_subnet_addresses() with ascending order by IP address; (3) initializes an empty array if no addresses are found; (4) fetches custom field definitions for IP addresses from the database using Tools->fetch_custom_fields()."
+ },
+ {
+  "instance_id": "zju-cve-2021-3730",
+  "hits": [
+   {
+    "docid": "app/Http/Controllers/Budget/AvailableBudgetController.php",
+    "startline": 140,
+    "endline": 161
+   },
+   {
+    "docid": "app/Http/Controllers/Budget/AvailableBudgetController.php",
+    "startline": 232,
+    "endline": 250
+   },
+   {
+    "docid": "app/Models/AvailableBudget.php",
+    "startline": 1,
+    "endline": 125
+   },
+   {
+    "docid": "app/Repositories/Budget/AvailableBudgetRepositoryInterface.php",
+    "startline": 1,
+    "endline": 157
+   },
+   {
+    "docid": "app/Repositories/Budget/AvailableBudgetRepository.php",
+    "startline": 54,
+    "endline": 61
+   },
+   {
+    "docid": "app/Repositories/Budget/AvailableBudgetRepository.php",
+    "startline": 263,
+    "endline": 271
+   },
+   {
+    "docid": "routes/web.php",
+    "startline": 239,
+    "endline": 257
+   }
+  ],
+  "function_summary": "This code defines five Laravel routes for the Available Budget Controller, which manages budget availability across different time periods and currencies. It includes:\n1. A route to edit an existing available budget (GET /available-budgets/edit/{availableBudget}/{start_date}/{end_date})\n2. A route to update an existing available budget (POST /available-budgets/update/{availableBudget}/{start_date}/{end_date})\n3. A route to delete an available budget (GET /available-budgets/delete/{availableBudget})\n\nThese routes allow authenticated users to modify and delete their available budget entries, where each available budget specifies the total amount available for a given currency within a specific date range."
+ },
+ {
+  "instance_id": "sjtu_CVE-2016-9177",
+  "hits": [
+   {
+    "docid": "src/main/java/spark/resource/ExternalResourceHandler.java",
+    "startline": 60,
+    "endline": 87
+   },
+   {
+    "docid": "src/main/java/spark/resource/AbstractResourceHandler.java",
+    "startline": 80,
+    "endline": 122
+   },
+   {
+    "docid": "src/main/java/spark/resource/UriPath.java",
+    "startline": 32,
+    "endline": 165
+   },
+   {
+    "docid": "src/main/java/spark/resource/ExternalResource.java",
+    "startline": 30,
+    "endline": 103
+   },
+   {
+    "docid": "src/main/java/spark/staticfiles/DirectoryTraversal.java",
+    "startline": 1,
+    "endline": 30
+   },
+   {
+    "docid": "src/main/java/spark/staticfiles/StaticFilesFolder.java",
+    "startline": 1,
+    "endline": 32
+   },
+   {
+    "docid": "src/main/java/spark/resource/AbstractFileResolvingResource.java",
+    "startline": 37,
+    "endline": 119
+   },
+   {
+    "docid": "src/main/java/spark/utils/StringUtils.java",
+    "startline": 218,
+    "endline": 267
+   },
+   {
+    "docid": "src/main/java/spark/utils/StringUtils.java",
+    "startline": 393,
+    "endline": 406
+   },
+   {
+    "docid": "src/main/java/spark/resource/ExternalResourceHandler.java",
+    "startline": 35,
+    "endline": 36
+   },
+   {
+    "docid": "src/main/java/spark/resource/ExternalResourceHandler.java",
+    "startline": 53,
+    "endline": 57
+   }
+  ],
+  "function_summary": "This code segment is responsible for resolving and locating external file resources based on a requested URI path. It canonicalizes the path, combines it with the base resource directory, creates an ExternalResource object, handles directory cases by optionally serving a welcome file, validates the resource exists, and performs directory traversal security checks before returning the resource."
+ },
+ {
+  "instance_id": "sjtu_CVE-2024-2928",
+  "hits": [
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 421,
+    "endline": 480
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 311,
+    "endline": 413
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 274,
+    "endline": 283
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 587,
+    "endline": 613
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 504,
+    "endline": 516
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 535,
+    "endline": 551
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 1,
+    "endline": 18
+   },
+   {
+    "docid": "mlflow/protos/service_pb2.py",
+    "startline": 191,
+    "endline": 204
+   },
+   {
+    "docid": "mlflow/utils/proto_json_utils.py",
+    "startline": 106,
+    "endline": 123
+   },
+   {
+    "docid": "mlflow/utils/proto_json_utils.py",
+    "startline": 154,
+    "endline": 157
+   },
+   {
+    "docid": "mlflow/utils/uri.py",
+    "startline": 478,
+    "endline": 484
+   },
+   {
+    "docid": "mlflow/protos/databricks_pb2.py",
+    "startline": 1,
+    "endline": 50
+   }
+  ],
+  "function_summary": "This code segment (lines 590-612) handles the creation of a new MLflow experiment via an HTTP API endpoint. It:\n\n1. Parses and validates the incoming HTTP request to extract the experiment name, optional artifact location, and optional tags\n2. Converts tag protobuf messages to ExperimentTag entities\n3. Validates the artifact location's query string to prevent path traversal attacks\n4. Creates the experiment in the tracking store with the provided parameters\n5. Constructs and returns a JSON response containing the newly created experiment ID"
+ },
+ {
+  "instance_id": "zju-cve-2022-0409",
+  "hits": [
+   {
+    "docid": "server/Application/Api/Controller/AttachmentController.class.php",
+    "startline": 68,
+    "endline": 94
+   },
+   {
+    "docid": "server/Application/Api/Controller/AttachmentController.class.php",
+    "startline": 1,
+    "endline": 11
+   },
+   {
+    "docid": "server/Application/Api/Controller/BaseController.class.php",
+    "startline": 40,
+    "endline": 67
+   },
+   {
+    "docid": "server/ThinkPHP/Common/functions.php",
+    "startline": 271,
+    "endline": 404
+   },
+   {
+    "docid": "server/Application/Api/Model/AttachmentModel.class.php",
+    "startline": 56,
+    "endline": 130
+   },
+   {
+    "docid": "server/Application/Common/Common/function.php",
+    "startline": 70,
+    "endline": 77
+   },
+   {
+    "docid": "server/Application/Api/Controller/AttachmentController.class.php",
+    "startline": 97,
+    "endline": 129
+   }
+  ],
+  "function_summary": "Lines 75-80 handle a special case for uploaded images where the filename is 'blob' (typically from clipboard/paste operations). When the uploaded file name is 'blob', the code appends '.jpg' extension to it. Then it checks if the $_FILES['editormd-image-file'] array is empty and returns false if no file was uploaded."
+ },
+ {
+  "instance_id": "sjtu_CVE-2018-1000850",
+  "hits": [
+   {
+    "docid": "retrofit/src/main/java/retrofit2/RequestBuilder.java",
+    "startline": 89,
+    "endline": 95
+   },
+   {
+    "docid": "retrofit/src/main/java/retrofit2/RequestBuilder.java",
+    "startline": 97,
+    "endline": 144
+   },
+   {
+    "docid": "retrofit/src/main/java/retrofit2/RequestBuilder.java",
+    "startline": 31,
+    "endline": 33
+   },
+   {
+    "docid": "retrofit/src/main/java/retrofit2/RequestBuilder.java",
+    "startline": 35,
+    "endline": 47
+   },
+   {
+    "docid": "retrofit/src/main/java/retrofit2/RequestBuilder.java",
+    "startline": 49,
+    "endline": 71
+   },
+   {
+    "docid": "retrofit/src/main/java/retrofit2/RequestBuilder.java",
+    "startline": 146,
+    "endline": 164
+   },
+   {
+    "docid": "retrofit/src/main/java/retrofit2/ParameterHandler.java",
+    "startline": 83,
+    "endline": 101
+   },
+   {
+    "docid": "retrofit/src/main/java/retrofit2/RequestFactory.java",
+    "startline": 92,
+    "endline": 114
+   },
+   {
+    "docid": "retrofit/src/main/java/retrofit2/RequestFactory.java",
+    "startline": 102,
+    "endline": 103
+   },
+   {
+    "docid": "retrofit/src/main/java/retrofit2/RequestBuilder.java",
+    "startline": 73,
+    "endline": 75
+   }
+  ],
+  "function_summary": "This code segment validates that the relativeUrl is not null before performing a path parameter substitution. If relativeUrl is null (which occurs when query parameters have been added), it throws an AssertionError. Otherwise, it replaces the path parameter placeholder (in the format \"{name}\") with the canonicalized value."
+ },
+ {
+  "instance_id": "sjtu_CVE-2024-1483",
+  "hits": [
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 1723,
+    "endline": 1742
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 1685,
+    "endline": 1721
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 1745,
+    "endline": 1772
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 274,
+    "endline": 283
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 286,
+    "endline": 298
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 110,
+    "endline": 113
+   },
+   {
+    "docid": "mlflow/utils/uri.py",
+    "startline": 27,
+    "endline": 68
+   },
+   {
+    "docid": "mlflow/utils/file_utils.py",
+    "startline": 639,
+    "endline": 651
+   },
+   {
+    "docid": "mlflow/exceptions.py",
+    "startline": 66,
+    "endline": 113
+   },
+   {
+    "docid": "mlflow/protos/databricks_pb2.py",
+    "startline": 1,
+    "endline": 50
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 1,
+    "endline": 113
+   }
+  ],
+  "function_summary": "This code segment validates the `source` parameter for model version creation in MLflow's model registry. It performs a two-step validation:\n\n1. **Local URI validation (lines 1724-1738)**: If the source is a local file URI, it verifies that:\n   - A `run_id` is provided\n   - The local path is contained within the artifact directory of the specified run\n   - If validation fails, it raises an `MlflowException` with an error message explaining the requirement\n\n2. **Non-local URI validation (lines 1740-1742)**: For non-local URIs (http, https, mlflow-artifacts, etc.), it delegates to `_validate_non_local_source_contains_relative_paths()` to check for path traversal attacks by detecting relative path components like `../` in the source URI."
+ },
+ {
+  "instance_id": "tsinghua_core_cve_2023_39008",
+  "hits": [
+   {
+    "docid": "src/opnsense/service/modules/template.py",
+    "startline": 64,
+    "endline": 65
+   },
+   {
+    "docid": "src/opnsense/service/modules/addons/template_helpers.py",
+    "startline": 55,
+    "endline": 123
+   },
+   {
+    "docid": "src/opnsense/mvc/app/models/OPNsense/Cron/Cron.xml",
+    "startline": 1,
+    "endline": 72
+   }
+  ],
+  "function_summary": "Lines 12-16 generate a cron job entry for each enabled job by: (1) outputting a comment line with the job's origin and description; (2) outputting the cron schedule fields (minutes, hours, days, months, weekdays); (3) invoking /usr/local/sbin/configctl with the -d flag and the job's command; (4) if parameters exist, splitting them using shell lexer rules (shlex_split), then iterating through each parameter and appending it to the command line with proper shell escaping (shlex_quote)."
+ },
+ {
+  "instance_id": "zju-cve-2016-5734",
+  "hits": [
+   {
+    "docid": "libraries/Menu.class.php",
+    "startline": 167,
+    "endline": 178
+   },
+   {
+    "docid": "libraries/Menu.class.php",
+    "startline": 17,
+    "endline": 53
+   },
+   {
+    "docid": "libraries/Menu.class.php",
+    "startline": 165,
+    "endline": 292
+   },
+   {
+    "docid": "libraries/Table.class.php",
+    "startline": 1,
+    "endline": 82
+   },
+   {
+    "docid": "libraries/Table.class.php",
+    "startline": 163,
+    "endline": 192
+   },
+   {
+    "docid": "libraries/DatabaseInterface.class.php",
+    "startline": 1,
+    "endline": 62
+   },
+   {
+    "docid": "libraries/DatabaseInterface.class.php",
+    "startline": 107,
+    "endline": 144
+   },
+   {
+    "docid": "libraries/DatabaseInterface.class.php",
+    "startline": 3199,
+    "endline": 3202
+   },
+   {
+    "docid": "libraries/Util.class.php",
+    "startline": 1,
+    "endline": 100
+   },
+   {
+    "docid": "libraries/config.default.php",
+    "startline": 116,
+    "endline": 325
+   }
+  ],
+  "function_summary": "This code segment builds the server information string that will be displayed in the breadcrumbs navigation bar. It retrieves the server's verbose name from configuration or defaults to the hostname, appends the port number if specified, constructs the HTML separator string, and builds an HTML anchor template for breadcrumb items that includes conditional display of label text based on the TabsMode configuration setting."
+ },
+ {
+  "instance_id": "zju-cve-2020-16846",
+  "hits": [
+   {
+    "docid": "salt/client/ssh/shell.py",
+    "startline": 10,
+    "endline": 13
+   },
+   {
+    "docid": "salt/client/ssh/shell.py",
+    "startline": 25,
+    "endline": 27
+   },
+   {
+    "docid": "salt/client/ssh/shell.py",
+    "startline": 31,
+    "endline": 31
+   },
+   {
+    "docid": "salt/client/ssh/shell.py",
+    "startline": 49,
+    "endline": 49
+   },
+   {
+    "docid": "salt/client/ssh/shell.py",
+    "startline": 63,
+    "endline": 63
+   },
+   {
+    "docid": "salt/client/ssh/shell.py",
+    "startline": 286,
+    "endline": 288
+   },
+   {
+    "docid": "salt/client/ssh/shell.py",
+    "startline": 300,
+    "endline": 302
+   },
+   {
+    "docid": "salt/client/ssh/shell.py",
+    "startline": 304,
+    "endline": 304
+   },
+   {
+    "docid": "salt/client/ssh/shell.py",
+    "startline": 454,
+    "endline": 454
+   }
+  ],
+  "function_summary": "Lines 10-13 are standard library import statements with an inline comment. Line 10 contains a comment \"# Import python libs\" that groups the subsequent imports. Lines 11-13 import three Python standard library modules: `re` (regular expressions), `subprocess` (process management), and `sys` (system-specific parameters and functions). These modules are used throughout the file for pattern matching (re.compile at lines 25-27, 31), subprocess execution (subprocess.call at line 49, subprocess.Popen at lines 286-287, subprocess.PIPE at lines 287, 301), and system operations (sys.exit at line 63)."
+ },
+ {
+  "instance_id": "zju-CVE-2022-1511",
+  "hits": [
+   {
+    "docid": "app/Http/Controllers/Assets/AssetsController.php",
+    "startline": 862,
+    "endline": 873
+   },
+   {
+    "docid": "app/Models/CheckoutRequest.php",
+    "startline": 1,
+    "endline": 51
+   },
+   {
+    "docid": "app/Models/Asset.php",
+    "startline": 1,
+    "endline": 51
+   },
+   {
+    "docid": "app/Models/User.php",
+    "startline": 1,
+    "endline": 51
+   },
+   {
+    "docid": "app/Models/User.php",
+    "startline": 439,
+    "endline": 442
+   }
+  ],
+  "function_summary": "This code retrieves a collection of CheckoutRequest records with eager-loaded user and requestedItem relationships, filters out canceled requests (whereNull('canceled_at')), and applies an optional filter by user_id if provided. The with('user', 'requestedItem') clause is duplicated unnecessarily. If a user_id is provided, the query filters by that user but incorrectly uses get() instead of continuing the query chain. Finally, it orders the results by created_at in descending order and retrieves all matching records."
+ },
+ {
+  "instance_id": "tsinghua_phpipam_phpipam_cve_2022_1224",
+  "hits": [
+   {
+    "docid": "app/tools/logs/show-logs.php",
+    "startline": 18,
+    "endline": 40
+   },
+   {
+    "docid": "functions/classes/class.User.php",
+    "startline": 1,
+    "endline": 1778
+   },
+   {
+    "docid": "functions/classes/class.User.php",
+    "startline": 125,
+    "endline": 154
+   },
+   {
+    "docid": "functions/classes/class.User.php",
+    "startline": 360,
+    "endline": 407
+   },
+   {
+    "docid": "functions/classes/class.Tools.php",
+    "startline": 1,
+    "endline": 63
+   },
+   {
+    "docid": "functions/classes/class.Log.php",
+    "startline": 1,
+    "endline": 299
+   }
+  ],
+  "function_summary": "Lines 28-40 initialize core PHP objects and verify user authentication. If required objects ($User, $Database, $Tools, $Result, $Log) are not already instantiated, the code requires the functions.php bootstrap file, instantiates a PDO database connection, creates User, Tools, Result, and Logging objects with the database dependency, and calls check_user_session() to verify the user is logged in. After initialization, if no POST parameters for log severity levels (Informational, Notice, Warning) are provided, it defaults all three to be displayed by setting their POST values."
+ },
+ {
+  "instance_id": "zju-CVE-2022-0178",
+  "hits": [
+   {
+    "docid": "app/Http/Controllers/ProfileController.php",
+    "startline": 115,
+    "endline": 117
+   },
+   {
+    "docid": "routes/web.php",
+    "startline": 246,
+    "endline": 246
+   },
+   {
+    "docid": "app/Http/Controllers/Controller.php",
+    "startline": 34,
+    "endline": 38
+   }
+  ],
+  "function_summary": "This code returns a view that renders the API token management interface. It loads the 'account/api' Blade template, which displays a page where authenticated users can generate and manage personal API access tokens using Laravel Passport. The page includes a Vue.js component for token generation and shows API documentation information."
+ },
+ {
+  "instance_id": "tsinghua_lucene_solr_cve_2017_7660",
+  "hits": [
+   {
+    "docid": "solr/core/src/java/org/apache/solr/security/PKIAuthenticationPlugin.java",
+    "startline": 62,
+    "endline": 68
+   },
+   {
+    "docid": "solr/core/src/java/org/apache/solr/security/PKIAuthenticationPlugin.java",
+    "startline": 196,
+    "endline": 220
+   },
+   {
+    "docid": "solr/core/src/java/org/apache/solr/security/PKIAuthenticationPlugin.java",
+    "startline": 322,
+    "endline": 324
+   },
+   {
+    "docid": "solr/core/src/java/org/apache/solr/core/CoreContainer.java",
+    "startline": 1410,
+    "endline": 1412
+   },
+   {
+    "docid": "solr/core/src/java/org/apache/solr/update/UpdateShardHandler.java",
+    "startline": 52,
+    "endline": 177
+   },
+   {
+    "docid": "solr/solrj/src/java/org/apache/solr/client/solrj/impl/HttpClientUtil.java",
+    "startline": 69,
+    "endline": 478
+   },
+   {
+    "docid": "solr/solrj/src/java/org/apache/solr/common/cloud/ZkStateReader.java",
+    "startline": 926,
+    "endline": 942
+   },
+   {
+    "docid": "solr/core/src/java/org/apache/solr/util/CryptoKeys.java",
+    "startline": 260,
+    "endline": 268
+   },
+   {
+    "docid": "solr/solrj/src/java/org/apache/solr/common/util/Utils.java",
+    "startline": 100,
+    "endline": 112
+   }
+  ],
+  "function_summary": "This code segment implements the getRemotePublicKey method which fetches a remote node's RSA public key from ZooKeeper for PKI authentication. The method: (1) retrieves the base URL for the given node name from ZooKeeper state, (2) constructs an HTTP GET request to the remote node's /admin/info/key endpoint, (3) executes the request using the update shard handler's HTTP client, (4) parses the JSON response to extract the public key string, (5) deserializes the X.509 encoded public key, (6) caches it in the keyCache map, and (7) returns the PublicKey object. If any exception occurs during the process, it logs an error and returns null."
+ },
+ {
+  "instance_id": "tsinghua_drawio_cve_2022_1723",
+  "hits": [
+   {
+    "docid": "src/main/java/com/mxgraph/online/EmbedServlet2.java",
+    "startline": 390,
+    "endline": 410
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/EmbedServlet2.java",
+    "startline": 385,
+    "endline": 388
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/EmbedServlet2.java",
+    "startline": 420,
+    "endline": 431
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/EmbedServlet2.java",
+    "startline": 250,
+    "endline": 252
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/EmbedServlet2.java",
+    "startline": 224,
+    "endline": 248
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/Utils.java",
+    "startline": 192,
+    "endline": 217
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/Utils.java",
+    "startline": 135,
+    "endline": 157
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/Utils.java",
+    "startline": 42,
+    "endline": 42
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/Utils.java",
+    "startline": 47,
+    "endline": 47
+   }
+  ],
+  "function_summary": "This code segment (lines 390-410) implements URL content fetching and caching for the GraphViewer. It iterates through an array of URLs from the \"fetch\" request parameter, downloads the content from each URL, URL-encodes it, and generates JavaScript code that stores the fetched content in the GraphViewer.cachedUrls object. It uses a HashSet to prevent duplicate URL fetches, handles exceptions silently, and builds a JavaScript string (setCachedUrls) that assigns decoded content to the cachedUrls cache using double-encoded URI components with escape sequences for JavaScript safety."
+ },
+ {
+  "instance_id": "zju-CVE-2022-0579",
+  "hits": [
+   {
+    "docid": "app/Http/Controllers/SuppliersController.php",
+    "startline": 185,
+    "endline": 194
+   },
+   {
+    "docid": "app/Models/Supplier.php",
+    "startline": 1,
+    "endline": 192
+   }
+  ],
+  "function_summary": "Lines 187-188 retrieve a Supplier record from the database by its ID. Line 187 uses the Supplier model's static find() method to query the suppliers table for a record matching the provided $supplierId parameter. Line 188 is a blank line serving as whitespace separation."
+ },
+ {
+  "instance_id": "zju-CVE-2022-0611",
+  "hits": [
+   {
+    "docid": "app/Http/Controllers/Api/AssetMaintenancesController.php",
+    "startline": 34,
+    "endline": 90
+   },
+   {
+    "docid": "app/Models/AssetMaintenance.php",
+    "startline": 1,
+    "endline": 212
+   }
+  ],
+  "function_summary": "Lines 34-40 define the `index()` method that initializes an AssetMaintenance query with eager-loaded relationships (asset, asset.model, asset.location, supplier, asset.company, admin) and optionally filters the results by applying a text search if the 'search' request parameter is present."
+ },
+ {
+  "instance_id": "zju-CVE-2022-0179",
+  "hits": [
+   {
+    "docid": "app/Http/Controllers/BulkAssetModelsController.php",
+    "startline": 23,
+    "endline": 23
+   },
+   {
+    "docid": "app/Http/Controllers/BulkAssetModelsController.php",
+    "startline": 28,
+    "endline": 31
+   },
+   {
+    "docid": "app/Http/Controllers/BulkAssetModelsController.php",
+    "startline": 34,
+    "endline": 41
+   },
+   {
+    "docid": "app/Models/AssetModel.php",
+    "startline": 98,
+    "endline": 101
+   }
+  ],
+  "function_summary": "This code segment counts how many asset models are eligible for deletion. It checks if the bulk action requested is 'delete', then iterates through the collection of asset models to count only those that have zero associated assets (assets_count == 0), storing this count in the $valid_count variable. Models with no associated assets are considered safe to delete."
+ },
+ {
+  "instance_id": "Capsa_CVE-2022-23457",
+  "hits": [
+   {
+    "docid": "src/main/java/org/owasp/esapi/reference/DefaultValidator.java",
+    "startline": 447,
+    "endline": 483
+   },
+   {
+    "docid": "src/main/java/org/owasp/esapi/reference/DefaultValidator.java",
+    "startline": 1182,
+    "endline": 1184
+   },
+   {
+    "docid": "src/main/java/org/owasp/esapi/reference/DefaultValidator.java",
+    "startline": 88,
+    "endline": 100
+   },
+   {
+    "docid": "src/main/java/org/owasp/esapi/Validator.java",
+    "startline": 252,
+    "endline": 276
+   },
+   {
+    "docid": "src/main/java/org/owasp/esapi/errors/ValidationException.java",
+    "startline": 1,
+    "endline": 115
+   },
+   {
+    "docid": "src/main/java/org/owasp/esapi/Encoder.java",
+    "startline": 174,
+    "endline": 274
+   },
+   {
+    "docid": "src/main/java/org/owasp/esapi/reference/DefaultEncoder.java",
+    "startline": 104,
+    "endline": 119
+   },
+   {
+    "docid": "src/main/java/org/owasp/esapi/reference/DefaultEncoder.java",
+    "startline": 124,
+    "endline": 202
+   },
+   {
+    "docid": "src/main/java/org/owasp/esapi/SecurityConfiguration.java",
+    "startline": 121,
+    "endline": 125
+   },
+   {
+    "docid": "src/main/java/org/owasp/esapi/ESAPI.java",
+    "startline": 96,
+    "endline": 102
+   },
+   {
+    "docid": "src/main/java/org/owasp/esapi/ESAPI.java",
+    "startline": 175,
+    "endline": 186
+   }
+  ],
+  "function_summary": "This code segment is the `getValidDirectoryPath` method that validates directory paths in ESAPI. It ensures that a given input path represents a valid directory that exists within a specified parent directory. The method performs the following validation steps:\n1. Checks if input is empty/null and handles according to allowNull parameter\n2. Creates a File object from the input path\n3. Validates that the directory exists and is actually a directory (not a file)\n4. Validates that the parent parameter exists and is a directory\n5. Ensures the input directory is within the parent directory using canonical paths (prevents directory traversal attacks)\n6. Validates the canonical path against the \"DirectoryName\" validation rule using the fileValidator\n7. Ensures the canonical path matches the original input (prevents path manipulation)\n8. Returns the canonical path if all validations pass, otherwise throws ValidationException\n\nThis is a security-critical method designed to prevent directory traversal attacks and ensure path integrity."
+ },
+ {
+  "instance_id": "Capsa_CVE-2022-21675",
+  "hits": [
+   {
+    "docid": "src/main/java/the/bytecode/club/bytecodeviewer/util/ZipUtils.java",
+    "startline": 1,
+    "endline": 13
+   },
+   {
+    "docid": "src/main/java/the/bytecode/club/bytecodeviewer/util/ZipUtils.java",
+    "startline": 36,
+    "endline": 86
+   },
+   {
+    "docid": "src/main/java/the/bytecode/club/bytecodeviewer/compilers/impl/SmaliAssembler.java",
+    "startline": 1,
+    "endline": 15
+   },
+   {
+    "docid": "src/main/java/the/bytecode/club/bytecodeviewer/compilers/impl/SmaliAssembler.java",
+    "startline": 80,
+    "endline": 83
+   },
+   {
+    "docid": "src/main/java/the/bytecode/club/bytecodeviewer/bootloader/Boot.java",
+    "startline": 1,
+    "endline": 30
+   },
+   {
+    "docid": "src/main/java/the/bytecode/club/bytecodeviewer/bootloader/Boot.java",
+    "startline": 310,
+    "endline": 320
+   },
+   {
+    "docid": "src/main/java/the/bytecode/club/bytecodeviewer/bootloader/Boot.java",
+    "startline": 343,
+    "endline": 353
+   },
+   {
+    "docid": "src/main/java/the/bytecode/club/bytecodeviewer/bootloader/Boot.java",
+    "startline": 447,
+    "endline": 451
+   },
+   {
+    "docid": "src/main/java/the/bytecode/club/bytecodeviewer/bootloader/Boot.java",
+    "startline": 492,
+    "endline": 496
+   }
+  ],
+  "function_summary": "This code segment (lines 46-85) implements the core logic of extracting JAR/ZIP archives to a destination directory. It opens a JAR file, iterates through all entries, creates parent directories as needed, and extracts files to the destination path. Directory entries (ending with \"/\") are skipped, while file entries are extracted by reading from the JAR input stream and writing to file output streams byte-by-byte."
+ },
+ {
+  "instance_id": "tsinghua_autogpt_cve_2025_1040",
+  "hits": [
+   {
+    "docid": "autogpt_platform/backend/backend/blocks/text.py",
+    "startline": 1,
+    "endline": 1
+   },
+   {
+    "docid": "autogpt_platform/backend/backend/blocks/text.py",
+    "startline": 4,
+    "endline": 4
+   },
+   {
+    "docid": "autogpt_platform/backend/backend/blocks/text.py",
+    "startline": 10,
+    "endline": 10
+   },
+   {
+    "docid": "autogpt_platform/backend/backend/blocks/text.py",
+    "startline": 121,
+    "endline": 161
+   },
+   {
+    "docid": "autogpt_platform/backend/backend/data/block.py",
+    "startline": 33,
+    "endline": 36
+   },
+   {
+    "docid": "autogpt_platform/backend/backend/data/block.py",
+    "startline": 67,
+    "endline": 106
+   },
+   {
+    "docid": "autogpt_platform/backend/backend/data/model.py",
+    "startline": 116,
+    "endline": 149
+   },
+   {
+    "docid": "autogpt_platform/backend/backend/blocks/basic.py",
+    "startline": 1,
+    "endline": 1
+   },
+   {
+    "docid": "autogpt_platform/backend/backend/blocks/basic.py",
+    "startline": 4,
+    "endline": 4
+   },
+   {
+    "docid": "autogpt_platform/backend/backend/blocks/basic.py",
+    "startline": 10,
+    "endline": 10
+   },
+   {
+    "docid": "autogpt_platform/backend/backend/blocks/basic.py",
+    "startline": 300,
+    "endline": 313
+   }
+  ],
+  "function_summary": "Lines 156-161 implement the `run` method of the `FillTextTemplateBlock` class. This method transforms a format string to support both Python-style string formatting syntax (single braces `{var}`) and Jinja2 template syntax (double braces `{{var}}`), then renders the template using Jinja2 with the provided values dictionary. The regex substitution `re.sub(r\"(?<!{){[ a-zA-Z0-9_]+}\", r\"{\\g<0>}\", input_data.format)` wraps all single-brace variable references with an additional set of braces (converting `{var}` to `{{var}}`), while preserving existing double-brace references to avoid creating triple braces. The rendered output is then yielded with the name \"output\"."
+ },
+ {
+  "instance_id": "zju-cve-2021-4005",
+  "hits": [
+   {
+    "docid": "routes/web.php",
+    "startline": 709,
+    "endline": 733
+   },
+   {
+    "docid": "app/Http/Controllers/ProfileController.php",
+    "startline": 151,
+    "endline": 196
+   },
+   {
+    "docid": "app/Http/Controllers/ProfileController.php",
+    "startline": 263,
+    "endline": 281
+   },
+   {
+    "docid": "app/Http/Controllers/ProfileController.php",
+    "startline": 288,
+    "endline": 310
+   },
+   {
+    "docid": "app/Http/Controllers/ProfileController.php",
+    "startline": 368,
+    "endline": 389
+   },
+   {
+    "docid": "app/Http/Controllers/ProfileController.php",
+    "startline": 485,
+    "endline": 520
+   },
+   {
+    "docid": "app/Http/Controllers/ProfileController.php",
+    "startline": 529,
+    "endline": 563
+   },
+   {
+    "docid": "app/Http/Kernel.php",
+    "startline": 148,
+    "endline": 160
+   }
+  ],
+  "function_summary": "Defines five 2FA-related routes for the user profile section: (1) POST route to enable 2FA that redirects to code generation, (2) GET route to display the 2FA setup page with QR code and backup codes, (3) POST route to verify and save the 2FA secret after user confirmation, (4) GET route to delete/disable 2FA, and (5) GET route to generate new backup recovery codes."
+ },
+ {
+  "instance_id": "zju-cve-2021-4015",
+  "hits": [
+   {
+    "docid": "routes/web.php",
+    "startline": 1079,
+    "endline": 1079
+   },
+   {
+    "docid": "app/Http/Controllers/Transaction/LinkController.php",
+    "startline": 121,
+    "endline": 151
+   },
+   {
+    "docid": "app/Http/Requests/JournalLinkRequest.php",
+    "startline": 42,
+    "endline": 53
+   },
+   {
+    "docid": "app/Http/Requests/JournalLinkRequest.php",
+    "startline": 60,
+    "endline": 77
+   },
+   {
+    "docid": "app/Repositories/LinkType/LinkTypeRepository.php",
+    "startline": 246,
+    "endline": 283
+   },
+   {
+    "docid": "app/Repositories/LinkType/LinkTypeRepositoryInterface.php",
+    "startline": 140,
+    "endline": 148
+   },
+   {
+    "docid": "app/Repositories/Journal/JournalRepositoryInterface.php",
+    "startline": 54,
+    "endline": 61
+   },
+   {
+    "docid": "app/Models/TransactionJournal.php",
+    "startline": 160,
+    "endline": 174
+   },
+   {
+    "docid": "routes/web.php",
+    "startline": 1073,
+    "endline": 1085
+   }
+  ],
+  "function_summary": "This code segment defines a POST route that stores a link between two transaction journals. When a POST request is submitted to `/transactions/link/store/{tj}` (where `{tj}` is a transaction journal ID), it invokes the `store` method of the `LinkController` controller in the `FireflyIII\\Http\\Controllers\\Transaction` namespace. The route is named `transactions.link.store` and is protected by the `user-full-auth` middleware, ensuring only fully authenticated users can access it. The route parameter `{tj}` is bound to a `TransactionJournal` model instance via Laravel's implicit model binding."
+ },
+ {
+  "instance_id": "zju-cve-2021-3901",
+  "hits": [
+   {
+    "docid": "routes/web.php",
+    "startline": 194,
+    "endline": 210
+   },
+   {
+    "docid": "app/Http/Controllers/Bill/IndexController.php",
+    "startline": 1,
+    "endline": 286
+   },
+   {
+    "docid": "bootstrap/app.php",
+    "startline": 69,
+    "endline": 104
+   }
+  ],
+  "function_summary": "This code segment defines a route group for the Bills Controller in a Laravel application. It creates GET and POST route endpoints for managing bills (recurring payment obligations). The routes handle listing bills, rescanning bills for transactions, creating new bills, editing existing bills, deleting bills, showing bill details, storing new bills, updating bills, destroying bills, and setting the display order of bills. All routes require user authentication with full privileges ('user-full-auth' middleware), use controllers in the 'FireflyIII\\Http\\Controllers' namespace with a '/bills' URL prefix, and route names prefixed with 'bills.'."
+ },
+ {
+  "instance_id": "zju-cve-2020-21564",
+  "hits": [
+   {
+    "docid": "data/inc/files.php",
+    "startline": 34,
+    "endline": 62
+   },
+   {
+    "docid": "data/inc/functions.all.php",
+    "startline": 245,
+    "endline": 259
+   },
+   {
+    "docid": "data/inc/functions.all.php",
+    "startline": 262,
+    "endline": 293
+   },
+   {
+    "docid": "data/inc/lang/en.php",
+    "startline": 37,
+    "endline": 37
+   },
+   {
+    "docid": "data/inc/lang/en.php",
+    "startline": 174,
+    "endline": 182
+   }
+  ],
+  "function_summary": "Lines 41-45 define an array of blocked file extensions and perform a security check to prevent uploading potentially dangerous executable files. The code creates a blacklist array of dangerous extensions (.php, .php3, .php4, .php5, .php6, .php7, .phtml, .phtm, .pht, .ph3, .ph4, .ph5, .asp, .cgi), then checks if the uploaded filename (converted to lowercase) ends with any of these extensions (checking last 4 or 5 characters) or contains '.htaccess'. If a dangerous extension is detected, the file is renamed by appending '.txt' to make it safe, then permissions are set to 0775. If the file is safe, permissions are set directly without renaming."
+ },
+ {
+  "instance_id": "zju-cve-2021-36440",
+  "hits": [
+   {
+    "docid": "server/Application/Api/Controller/AdminUpdateController.class.php",
+    "startline": 25,
+    "endline": 76
+   },
+   {
+    "docid": "server/ThinkPHP/Common/functions.php",
+    "startline": 271,
+    "endline": 404
+   },
+   {
+    "docid": "server/Application/Api/Controller/BaseController.class.php",
+    "startline": 1,
+    "endline": 257
+   },
+   {
+    "docid": "server/Application/Api/Controller/AdminUpdateController.class.php",
+    "startline": 141,
+    "endline": 169
+   },
+   {
+    "docid": "server/Application/Api/Controller/AdminUpdateController.class.php",
+    "startline": 202,
+    "endline": 222
+   },
+   {
+    "docid": "server/Application/Api/Controller/AdminUpdateController.class.php",
+    "startline": 4,
+    "endline": 4
+   },
+   {
+    "docid": "server/Application/Api/Controller/BaseController.class.php",
+    "startline": 85,
+    "endline": 116
+   },
+   {
+    "docid": "server/Application/Api/Controller/BaseController.class.php",
+    "startline": 119,
+    "endline": 140
+   }
+  ],
+  "function_summary": "This code segment is the beginning of the `download()` method that handles downloading update packages. Lines 25-30 specifically configure PHP execution settings and retrieve input parameters: it sets a 1000-second execution timeout, allocates 500MB of memory, and fetches two request parameters - `new_version` (the version number to download) and `file_url` (the download URL for the update package)."
+ },
+ {
+  "instance_id": "zju-cve-2021-3729",
+  "hits": [
+   {
+    "docid": "app/Http/Controllers/CurrencyController.php",
+    "startline": 1,
+    "endline": 431
+   },
+   {
+    "docid": "app/Models/TransactionCurrency.php",
+    "startline": 1,
+    "endline": 134
+   },
+   {
+    "docid": "app/Repositories/Currency/CurrencyRepositoryInterface.php",
+    "startline": 1,
+    "endline": 245
+   },
+   {
+    "docid": "routes/web.php",
+    "startline": 309,
+    "endline": 324
+   }
+  ],
+  "function_summary": "This code segment defines seven GET routes for currency management within a route group. The routes handle the following currency operations: listing all currencies (index), creating a new currency form, editing an existing currency, deleting a currency, setting a currency as default, enabling a currency, and disabling a currency. All routes are authenticated (require full user authentication), use the CurrencyController, have a 'currencies.' prefix in their route names, and use '/currencies' as the URL prefix."
+ },
+ {
+  "instance_id": "sjtu_CVE-2022-36007",
+  "hits": [
+   {
+    "docid": "src/main/java/com/github/jlangch/venice/impl/util/io/LoadPaths.java",
+    "startline": 253,
+    "endline": 270
+   },
+   {
+    "docid": "src/main/java/com/github/jlangch/venice/impl/util/io/LoadPaths.java",
+    "startline": 210,
+    "endline": 229
+   },
+   {
+    "docid": "src/main/java/com/github/jlangch/venice/impl/util/io/LoadPaths.java",
+    "startline": 244,
+    "endline": 251
+   },
+   {
+    "docid": "src/main/java/com/github/jlangch/venice/impl/util/io/LoadPaths.java",
+    "startline": 280,
+    "endline": 281
+   },
+   {
+    "docid": "src/main/java/com/github/jlangch/venice/VncException.java",
+    "startline": 41,
+    "endline": 60
+   }
+  ],
+  "function_summary": "This code segment is a security validation method that checks whether a file resides within a specified directory. It prevents directory traversal attacks by ensuring that the canonical path of the target file starts with the canonical path of the allowed directory. The method takes a directory and a file as parameters, constructs the file's path relative to the directory, and verifies that the resulting canonical path stays within the directory boundaries (preventing attacks like \"../../etc/passwd\"). It returns true only if the directory exists, the constructed file path points to an actual file, and the file's canonical path is within the directory's canonical path."
+ },
+ {
+  "instance_id": "zju-cve-2021-3819",
+  "hits": [
+   {
+    "docid": "app/Http/Controllers/CurrencyController.php",
+    "startline": 136,
+    "endline": 264
+   },
+   {
+    "docid": "app/Models/TransactionCurrency.php",
+    "startline": 1,
+    "endline": 135
+   },
+   {
+    "docid": "app/Repositories/Currency/CurrencyRepositoryInterface.php",
+    "startline": 1,
+    "endline": 236
+   },
+   {
+    "docid": "app/Repositories/User/UserRepositoryInterface.php",
+    "startline": 1,
+    "endline": 207
+   },
+   {
+    "docid": "routes/web.php",
+    "startline": 333,
+    "endline": 348
+   }
+  ],
+  "function_summary": "This code segment defines four GET routes for currency management in a Laravel web application. The routes handle: (1) deleting a currency (showing delete confirmation page), (2) setting a default currency via POST, (3) enabling a currency, and (4) disabling a currency. All routes are protected by 'user-full-auth' middleware, use the CurrencyController, are prefixed with '/currencies', and named with 'currencies.' prefix. Each route uses route model binding with the {currency} parameter that maps to TransactionCurrency model instances."
+ },
+ {
+  "instance_id": "zju-cve-2020-29607",
+  "hits": [
+   {
+    "docid": "files/.htaccess",
+    "startline": 1,
+    "endline": 9
+   }
+  ],
+  "function_summary": "This code segment closes the FilesMatch directive for .phtml files and disables CGI script execution for the directory. Line 7 closes the FilesMatch block that prevents .phtml files from being executed as server-side scripts. Line 9 disables the execution of CGI scripts in the /files directory using the Apache Options directive."
+ },
+ {
+  "instance_id": "zju-cve-2021-3728",
+  "hits": [
+   {
+    "docid": "routes/web.php",
+    "startline": 262,
+    "endline": 272
+   },
+   {
+    "docid": "app/Http/Controllers/Budget/BudgetLimitController.php",
+    "startline": 1,
+    "endline": 223
+   },
+   {
+    "docid": "app/Models/BudgetLimit.php",
+    "startline": 1,
+    "endline": 122
+   },
+   {
+    "docid": "app/Models/Budget.php",
+    "startline": 1,
+    "endline": 177
+   },
+   {
+    "docid": "app/Repositories/Budget/BudgetLimitRepositoryInterface.php",
+    "startline": 1,
+    "endline": 132
+   },
+   {
+    "docid": "app/Repositories/Budget/BudgetLimitRepository.php",
+    "startline": 1,
+    "endline": 451
+   },
+   {
+    "docid": "app/Models/TransactionCurrency.php",
+    "startline": 1,
+    "endline": 134
+   },
+   {
+    "docid": "app/Support/Http/Controllers/DateCalculation.php",
+    "startline": 1,
+    "endline": 170
+   },
+   {
+    "docid": "app/Repositories/Budget/OperationsRepositoryInterface.php",
+    "startline": 1,
+    "endline": 103
+   },
+   {
+    "docid": "app/Repositories/Budget/BudgetRepositoryInterface.php",
+    "startline": 1,
+    "endline": 172
+   },
+   {
+    "docid": "app/Repositories/Currency/CurrencyRepositoryInterface.php",
+    "startline": 1,
+    "endline": 245
+   }
+  ],
+  "function_summary": "This code segment defines four HTTP routes for budget limit management in a Laravel application (Firefly III budget tracking system). The routes handle: (1) Creating a new budget limit with GET /budget-limits/create/{budget}/{start_date}/{end_date}, (2) Storing a new budget limit via POST /budget-limits/store, (3) Deleting an existing budget limit with GET /budget-limits/delete/{budgetLimit}, and (4) Updating an existing budget limit via POST /budget-limits/update/{budgetLimit}. All routes require user-full-auth middleware and are prefixed with 'budget-limits', using the BudgetLimitController in the Budget namespace with named route aliases."
+ },
+ {
+  "instance_id": "zju-cve-2022-1034",
+  "hits": [
+   {
+    "docid": "server/Application/Api/Controller/AdminUpdateController.class.php",
+    "startline": 26,
+    "endline": 78
+   },
+   {
+    "docid": "server/Application/Api/Controller/BaseController.class.php",
+    "startline": 1,
+    "endline": 288
+   },
+   {
+    "docid": "server/ThinkPHP/Common/functions.php",
+    "startline": 257,
+    "endline": 404
+   }
+  ],
+  "function_summary": "This code segment configures PHP runtime settings and retrieves user input parameters for downloading a version update package. It sets execution time limit to 1000 seconds and memory limit to 500MB to handle potentially large file downloads. It then retrieves two POST/GET parameters: \"new_version\" (the new version string) and \"file_url\" (the download URL for the update package). Finally, it removes the \"v\" prefix from the version string to obtain the numeric version number."
+ },
+ {
+  "instance_id": "zju-cve-2025-2945",
+  "hits": [
+   {
+    "docid": "web/pgadmin/tools/sqleditor/__init__.py",
+    "startline": 2130,
+    "endline": 2214
+   },
+   {
+    "docid": "web/pgadmin/tools/sqleditor/__init__.py",
+    "startline": 745,
+    "endline": 799
+   },
+   {
+    "docid": "web/pgadmin/tools/sqleditor/__init__.py",
+    "startline": 2140,
+    "endline": 2140
+   },
+   {
+    "docid": "web/pgadmin/tools/sqleditor/__init__.py",
+    "startline": 27,
+    "endline": 27
+   },
+   {
+    "docid": "web/pgadmin/tools/sqleditor/__init__.py",
+    "startline": 1,
+    "endline": 73
+   },
+   {
+    "docid": "web/pgadmin/tools/sqleditor/command.py",
+    "startline": 837,
+    "endline": 991
+   },
+   {
+    "docid": "web/pgadmin/tools/sqleditor/command.py",
+    "startline": 478,
+    "endline": 524
+   },
+   {
+    "docid": "web/pgadmin/utils/driver/psycopg3/connection.py",
+    "startline": 806,
+    "endline": 920
+   }
+  ],
+  "function_summary": "This code segment (lines 2157-2162) processes a 'query_commited' parameter from request data in a query download endpoint. It iterates through request data items to extract two values: 1) the 'query' parameter (stored in sql variable), and 2) the 'query_commited' parameter. For 'query_commited', if the value is a string, it evaluates it using eval() to convert it to a boolean; otherwise, it uses the value directly. This is a security vulnerability as using eval() on user-controlled input can lead to arbitrary code execution."
+ },
+ {
+  "instance_id": "tsinghua_owncloud_cve_2012_4392",
+  "hits": [
+   {
+    "docid": "index.php",
+    "startline": 74,
+    "endline": 105
+   },
+   {
+    "docid": "lib/user.php",
+    "startline": 196,
+    "endline": 210
+   },
+   {
+    "docid": "lib/user.php",
+    "startline": 217,
+    "endline": 220
+   },
+   {
+    "docid": "lib/user.php",
+    "startline": 353,
+    "endline": 363
+   },
+   {
+    "docid": "lib/user.php",
+    "startline": 369,
+    "endline": 374
+   },
+   {
+    "docid": "lib/user.php",
+    "startline": 379,
+    "endline": 386
+   },
+   {
+    "docid": "lib/preferences.php",
+    "startline": 115,
+    "endline": 126
+   },
+   {
+    "docid": "lib/preferences.php",
+    "startline": 139,
+    "endline": 153
+   },
+   {
+    "docid": "lib/util.php",
+    "startline": 325,
+    "endline": 337
+   },
+   {
+    "docid": "lib/log.php",
+    "startline": 16,
+    "endline": 39
+   },
+   {
+    "docid": "lib/helper.php",
+    "startline": 596,
+    "endline": 621
+   },
+   {
+    "docid": "lib/config.php",
+    "startline": 70,
+    "endline": 78
+   },
+   {
+    "docid": "lib/base.php",
+    "startline": 28,
+    "endline": 80
+   },
+   {
+    "docid": "lib/app.php",
+    "startline": 51,
+    "endline": 74
+   }
+  ],
+  "function_summary": "This code segment handles the \"remember me\" functionality and user login authentication for the ownCloud application. It performs two main operations: (1) Automatic login via cookies - checks if \"remember login\" cookies exist (oc_remember_login, oc_token, oc_username), validates the stored token against the user's preferences in the database, and if valid, logs the user in and redirects to the default page; otherwise clears the cookies. (2) Form-based login - validates POST login requests by checking CSRF tokens (sectoken), authenticating username/password via OC_User::login(), and if \"remember_login\" checkbox was selected, generates a new token (MD5 hash of username+time+password), stores it in user preferences, and sets magic cookies for future auto-login; finally redirects to the default page or sets an error flag if authentication fails."
+ },
+ {
+  "instance_id": "tsinghua_ganglia_web_cve_2015_6816",
+  "hits": [
+   {
+    "docid": "lib/GangliaAuth.php",
+    "startline": 40,
+    "endline": 46
+   },
+   {
+    "docid": "lib/GangliaAuth.php",
+    "startline": 78,
+    "endline": 81
+   },
+   {
+    "docid": "lib/GangliaAuth.php",
+    "startline": 5,
+    "endline": 7
+   },
+   {
+    "docid": "lib/GangliaAuth.php",
+    "startline": 84,
+    "endline": 89
+   },
+   {
+    "docid": "lib/GangliaAuth.php",
+    "startline": 34,
+    "endline": 39
+   },
+   {
+    "docid": "lib/GangliaAuth.php",
+    "startline": 25,
+    "endline": 32
+   },
+   {
+    "docid": "lib/GangliaAuth.php",
+    "startline": 47,
+    "endline": 50
+   }
+  ],
+  "function_summary": "This code segment validates the authentication cookie data structure and verifies the authentication token. It first unserializes the cookie value into a data array (line 40), then checks if the array contains exactly the expected keys 'user', 'group', and 'token' in that exact order (lines 42-44), returning false if the structure is invalid. Finally, it verifies the authentication token by comparing the token from the cookie against a computed token using the username (line 46), and if valid, sets the authentication state and stores the user and group information (lines 47-49)."
+ },
+ {
+  "instance_id": "zju-CVE-2021-4089",
+  "hits": [
+   {
+    "docid": "app/Http/Controllers/AssetModelsController.php",
+    "startline": 270,
+    "endline": 285
+   },
+   {
+    "docid": "app/Models/AssetModel.php",
+    "startline": 1,
+    "endline": 274
+   },
+   {
+    "docid": "app/Helpers/Helper.php",
+    "startline": 512,
+    "endline": 517
+   },
+   {
+    "docid": "app/Http/Requests/ImageUploadRequest.php",
+    "startline": 1,
+    "endline": 197
+   }
+  ],
+  "function_summary": "This code segment checks if an AssetModel with the given ID exists. If the model is null (not found), it redirects to the models index route with an error message indicating the model does not exist."
+ },
+ {
+  "instance_id": "tsinghua_drawio_cve_2022_1767",
+  "hits": [
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 247,
+    "endline": 282
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 64,
+    "endline": 202
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 32,
+    "endline": 51
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 208,
+    "endline": 234
+   }
+  ],
+  "function_summary": "This code segment (lines 247-269) implements CORS (Cross-Origin Resource Sharing) domain validation logic for a proxy servlet. It examines the HTTP referer header and user agent to determine if the request originates from authorized domains (draw.io, diagrams.net, quipelements.com, or Confluence/Jira servers). If the referer matches specific regex patterns, it extracts and returns the appropriate CORS domain string; otherwise, it returns null to deny the request. The function uses case-insensitive matching and substring extraction to construct the allowed origin for the Access-Control-Allow-Origin header."
+ },
+ {
+  "instance_id": "zju-cve-2020-19217",
+  "hits": [
+   {
+    "docid": "admin/batch_manager.php",
+    "startline": 128,
+    "endline": 134
+   },
+   {
+    "docid": "admin/batch_manager.php",
+    "startline": 89,
+    "endline": 198
+   },
+   {
+    "docid": "admin/batch_manager.php",
+    "startline": 463,
+    "endline": 495
+   },
+   {
+    "docid": "admin/batch_manager.php",
+    "startline": 30,
+    "endline": 45
+   },
+   {
+    "docid": "include/common.inc.php",
+    "startline": 63,
+    "endline": 70
+   },
+   {
+    "docid": "include/constants.php",
+    "startline": 48,
+    "endline": 101
+   }
+  ],
+  "function_summary": "This code segment saves the category filter settings to the user's session when a filter form is submitted. It stores the category ID and an optional \"recursive\" flag that indicates whether to include subcategories in the filter."
+ },
+ {
+  "instance_id": "sjtu_CVE-2018-1002201",
+  "hits": [
+   {
+    "docid": "src/main/java/org/zeroturnaround/zip/ZipUtil.java",
+    "startline": 1238,
+    "endline": 1288
+   },
+   {
+    "docid": "src/main/java/org/zeroturnaround/zip/ZipUtil.java",
+    "startline": 64,
+    "endline": 64
+   },
+   {
+    "docid": "src/main/java/org/zeroturnaround/zip/ZipEntryCallback.java",
+    "startline": 1,
+    "endline": 40
+   },
+   {
+    "docid": "src/main/java/org/zeroturnaround/zip/NameMapper.java",
+    "startline": 1,
+    "endline": 34
+   },
+   {
+    "docid": "src/main/java/org/zeroturnaround/zip/commons/FileUtils.java",
+    "startline": 1,
+    "endline": 80
+   },
+   {
+    "docid": "src/main/java/org/zeroturnaround/zip/commons/FilenameUtils.java",
+    "startline": 175,
+    "endline": 230
+   },
+   {
+    "docid": "src/main/java/org/zeroturnaround/zip/ZipUtil.java",
+    "startline": 70,
+    "endline": 70
+   }
+  ],
+  "function_summary": "This code segment (lines 1196-1273 of ZipUtil.java) is the `process` method of the private inner class `Unwraper` (which implements `ZipEntryCallback`). This method extracts a ZIP entry while removing a single parent directory from the entry path. It ensures that all entries share the same root directory, throwing an exception if multiple root directories are detected. For each entry, it removes the root directory prefix and extracts the file/directory to the output location, creating necessary parent directories as needed."
+ },
+ {
+  "instance_id": "zju-cve-2023-41892",
+  "hits": [
+   {
+    "docid": "src/controllers/AssetIndexesController.php",
+    "startline": 38,
+    "endline": 44
+   },
+   {
+    "docid": "src/web/Controller.php",
+    "startline": 124,
+    "endline": 138
+   },
+   {
+    "docid": "src/web/Controller.php",
+    "startline": 425,
+    "endline": 430
+   },
+   {
+    "docid": "src/web/Controller.php",
+    "startline": 474,
+    "endline": 479
+   },
+   {
+    "docid": "src/web/User.php",
+    "startline": 268,
+    "endline": 273
+   },
+   {
+    "docid": "src/web/Request.php",
+    "startline": 1297,
+    "endline": 1300
+   },
+   {
+    "docid": "src/Craft.php",
+    "startline": 33,
+    "endline": 55
+   }
+  ],
+  "function_summary": "This code segment is a `beforeAction` hook that enforces access control for the AssetIndexesController. It requires the current user to have the 'utility:asset-indexes' permission and ensures the request accepts JSON responses. If these conditions are met, it calls the parent class's beforeAction method to continue the action execution chain."
+ },
+ {
+  "instance_id": "zju-cve-2021-3921",
+  "hits": [
+   {
+    "docid": "app/Http/Controllers/DebugController.php",
+    "startline": 68,
+    "endline": 79
+   },
+   {
+    "docid": "app/Http/Controllers/DebugController.php",
+    "startline": 88,
+    "endline": 111
+   },
+   {
+    "docid": "app/Http/Controllers/DebugController.php",
+    "startline": 121,
+    "endline": 228
+   },
+   {
+    "docid": "app/Http/Controllers/Auth/LoginController.php",
+    "startline": 143,
+    "endline": 171
+   },
+   {
+    "docid": "app/Http/Kernel.php",
+    "startline": 134,
+    "endline": 142
+   },
+   {
+    "docid": "routes/web.php",
+    "startline": 80,
+    "endline": 89
+   }
+  ],
+  "function_summary": "This code segment defines a route group for authenticated users with simple authentication requirements. It registers four debug and authentication-related routes:\n1. GET /error - displays error messages for debugging purposes\n2. ANY /logout - logs the user out of the application\n3. GET /flush - clears application cache, config, routes, twig, and view caches\n4. GET /debug - displays comprehensive system debug information\n\nAll routes in this group are protected by the 'user-simple-auth' middleware, which requires users to be logged in but does not enforce 2FA or account confirmation. The routes are handled by DebugController and Auth\\LoginController within the FireflyIII\\Http\\Controllers namespace."
+ },
+ {
+  "instance_id": "Capsa_CVE-2022-26049",
+  "hits": [
+   {
+    "docid": "src/main/java/com/diffplug/gradle/ZipMisc.java",
+    "startline": 176,
+    "endline": 191
+   },
+   {
+    "docid": "src/main/java/com/diffplug/gradle/ZipMisc.java",
+    "startline": 165,
+    "endline": 168
+   },
+   {
+    "docid": "src/main/java/com/diffplug/gradle/FileMisc.java",
+    "startline": 95,
+    "endline": 101
+   }
+  ],
+  "function_summary": "This code segment is the `unzip` method that extracts a zip file to a destination directory. It iterates through all entries in the zip file using a ZipInputStream. For each entry, if it's a directory, it creates the directory structure; if it's a file, it creates the parent directories and then copies the file contents from the zip stream to the destination file using buffered streams."
+ },
+ {
+  "instance_id": "zju-cve-2018-15153",
+  "hits": [
+   {
+    "docid": "ccdaservice/ccda_gateway.php",
+    "startline": 119,
+    "endline": 146
+   },
+   {
+    "docid": "interface/globals.php",
+    "startline": 35,
+    "endline": 38
+   },
+   {
+    "docid": "interface/globals.php",
+    "startline": 49,
+    "endline": 52
+   },
+   {
+    "docid": "interface/globals.php",
+    "startline": 165,
+    "endline": 165
+   }
+  ],
+  "function_summary": "This code segment implements platform-specific logic to start a Node.js service that generates CCDA (Consolidated Clinical Document Architecture) documents. On Windows systems, it uses the 'node' command with 'start /B' to launch the service in the background via pclose(popen()). On non-Windows systems (Linux/Unix), it uses the 'nodejs' command with output redirection and background execution via exec(). The path to the Node.js service script (serveccda.js) is constructed using the $GLOBALS['fileroot'] variable concatenated with \"/ccdaservice\". The IS_WINDOWS constant determines which execution path is taken."
+ },
+ {
+  "instance_id": "tsinghua_drawio_cve_2022_1711",
+  "hits": [
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 250,
+    "endline": 286
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 64,
+    "endline": 195
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 1,
+    "endline": 60
+   }
+  ],
+  "function_summary": "This code segment implements CORS (Cross-Origin Resource Sharing) domain validation logic for proxy requests. The getCorsDomain method examines the HTTP referer and user-agent headers to determine if the request originates from authorized domains (draw.io, diagrams.net, quipelements.com, or Confluence/Jira servers). If the referer matches specific domain patterns using regex, it extracts and returns the appropriate CORS domain string. For Confluence/Jira proxy requests, it checks for either a specific referer value or a hardcoded legacy Firefox user-agent string, returning an empty string to allow cross-origin access. If no patterns match, it returns null, indicating the request should not receive CORS headers."
+ },
+ {
+  "instance_id": "tsinghua_drawio_cve_2022_1784",
+  "hits": [
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 250,
+    "endline": 282
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 32,
+    "endline": 60
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 64,
+    "endline": 202
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 1,
+    "endline": 27
+   }
+  ],
+  "function_summary": "This code segment is the `getCorsDomain` method that determines the appropriate Cross-Origin Resource Sharing (CORS) domain header value based on the HTTP referer and user-agent headers. It uses regex pattern matching to validate if the request originates from trusted domains (draw.io, diagrams.net, or quipelements.com) and extracts the appropriate subdomain prefix. For Confluence/Jira proxy requests, it identifies them through specific referer or user-agent strings and returns an empty string to allow CORS. The method returns null if no trusted domain pattern matches, which signals that CORS should not be allowed."
+ },
+ {
+  "instance_id": "tsinghua_drawio_cve_2022_1713",
+  "hits": [
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 233,
+    "endline": 282
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 41,
+    "endline": 41
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 65,
+    "endline": 196
+   },
+   {
+    "docid": "src/main/java/com/mxgraph/online/ProxyServlet.java",
+    "startline": 287,
+    "endline": 292
+   }
+  ],
+  "function_summary": "This code segment validates URL parameters to prevent Server-Side Request Forgery (SSRF) attacks by blocking access to private/internal IP address ranges and local hostnames. It parses the input URL string, extracts the protocol and hostname, then checks that: (1) the protocol is HTTP or HTTPS, and (2) the hostname does not match any private IP address ranges (including 10.0.0.0/8, 127.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, and various other reserved ranges), localhost, or internal/local domain names. Returns true if the URL is safe to proxy, false otherwise."
+ },
+ {
+  "instance_id": "Capsa_CVE-2024-1594",
+  "hits": [
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 421,
+    "endline": 480
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 274,
+    "endline": 283
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 504,
+    "endline": 515
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 535,
+    "endline": 551
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 311,
+    "endline": 360
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 372,
+    "endline": 413
+   },
+   {
+    "docid": "mlflow/server/handlers.py",
+    "startline": 18,
+    "endline": 18
+   },
+   {
+    "docid": "mlflow/protos/service.proto",
+    "startline": 658,
+    "endline": 677
+   },
+   {
+    "docid": "mlflow/protos/service_pb2.py",
+    "startline": 191,
+    "endline": 204
+   },
+   {
+    "docid": "mlflow/utils/proto_json_utils.py",
+    "startline": 106,
+    "endline": 123
+   },
+   {
+    "docid": "mlflow/utils/proto_json_utils.py",
+    "startline": 154,
+    "endline": 157
+   },
+   {
+    "docid": "mlflow/utils/uri.py",
+    "startline": 478,
+    "endline": 484
+   },
+   {
+    "docid": "mlflow/protos/databricks_pb2.py",
+    "startline": 1,
+    "endline": 50
+   },
+   {
+    "docid": "mlflow/store/tracking/file_store.py",
+    "startline": 1,
+    "endline": 100
+   },
+   {
+    "docid": "mlflow/store/tracking/sqlalchemy_store.py",
+    "startline": 1,
+    "endline": 100
+   }
+  ],
+  "function_summary": "This code segment (lines 589-612) is the `_create_experiment()` handler function for the MLflow tracking server's \"create experiment\" API endpoint. It processes HTTP requests to create a new experiment by:\n\n1. Parsing and validating the incoming request (name, artifact_location, tags)\n2. Converting protobuf ExperimentTag objects to ExperimentTag entity objects\n3. Validating the query string in the artifact_location URL to prevent path traversal attacks\n4. Calling the tracking store to create the experiment in the backend\n5. Building and returning a JSON response containing the newly created experiment ID\n\nThe function is decorated with `@catch_mlflow_exception` to handle exceptions and `@_disable_if_artifacts_only` to ensure it's disabled when the server is running in artifacts-only mode."
+ },
+ {
+  "instance_id": "sjtu_CVE-2018-12036",
+  "hits": [
+   {
+    "docid": "core/src/main/java/org/owasp/dependencycheck/utils/ExtractionUtil.java",
+    "startline": 86,
+    "endline": 122
+   },
+   {
+    "docid": "utils/src/main/java/org/owasp/dependencycheck/utils/ExtractionException.java",
+    "startline": 1,
+    "endline": 68
+   },
+   {
+    "docid": "core/src/main/java/org/owasp/dependencycheck/Engine.java",
+    "startline": 1011,
+    "endline": 1023
+   },
+   {
+    "docid": "core/src/main/java/org/owasp/dependencycheck/utils/ExtractionUtil.java",
+    "startline": 53,
+    "endline": 53
+   },
+   {
+    "docid": "core/src/main/java/org/owasp/dependencycheck/utils/ExtractionUtil.java",
+    "startline": 20,
+    "endline": 40
+   }
+  ],
+  "function_summary": "This code segment is the main extraction logic of the `extractFiles` method that extracts files from a ZIP archive to a specified directory. It iterates through all entries in the ZIP file, creates directories for directory entries, and extracts file entries to disk. For each file entry, it optionally checks if the file should be extracted based on whether the Engine accepts the file type (when an Engine is provided). The method uses try-with-resources to automatically close the ZIP input stream and handles various I/O exceptions by logging them and throwing ExtractionException with descriptive messages."
+ }
+]
