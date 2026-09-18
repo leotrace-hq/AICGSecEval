@@ -10,7 +10,7 @@ if [ -n "$PID" ]; then
 fi
 sleep 5  # let tee flush and close
 n=0
-for f in "$ASE"/outputs/stage3/_genlogs/*.log "$ASE"/agent_gencode_error.log; do
+for f in "$ASE"/outputs/*/_genlogs/*.log "$ASE"/agent_gencode_error.log; do
   [ -f "$f" ] || continue
   if grep -aqE 'gh[pousr]_[A-Za-z0-9]{16,}' "$f"; then
     LC_ALL=C sed -i '' -E 's/gh[pousr]_[A-Za-z0-9]{16,}/<REDACTED-GH-TOKEN>/g' "$f"
