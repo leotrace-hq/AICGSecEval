@@ -1,7 +1,24 @@
 #!/usr/bin/env bash
-# One-shot status for a running A.S.E cohort. Usage: status.sh [output_dir] [dataset]
+# Status for a running A.S.E cohort.
+#   status.sh [output_dir] [dataset]              one-shot
+#   status.sh --watch [secs] [output_dir] [ds]    self-refreshing (Ctrl-C to stop)
 set -uo pipefail
 ASE=/Users/bbaukema/Documents/github/Tencent/AICGSecEval
+
+if [ "${1:-}" = "--watch" ]; then
+  shift
+  ivl=60
+  case "${1:-}" in ''|*[!0-9]*) ;; *) ivl=$1; shift;; esac
+  # macOS has no `watch`; re-exec ourselves one-shot on a timer. Ctrl-C exits.
+  trap 'printf "\n"; exit 0' INT
+  while :; do
+    printf '\033[H\033[2J'            # home + clear, so the view does not scroll
+    "$0" "$@"
+    printf '\n(refreshing every %ss -- Ctrl-C to stop)\n' "$ivl"
+    sleep "$ivl"
+  done
+fi
+
 OUT=${1:-outputs/inscope}; DS=${2:-data/inscope_v2.json}
 case "$OUT" in /*) ;; *) OUT="$ASE/$OUT";; esac
 case "$DS"  in /*) ;; *) DS="$ASE/$DS";;  esac
