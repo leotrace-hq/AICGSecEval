@@ -80,10 +80,19 @@ run() {  # $1=agent_name  $2=arm  $3=batch_id
   echo "[gen] $batch: $ok successful generation(s) recorded"
 }
 
-echo "### RUN25 GEN START @ $(date '+%F %T') — 4 batches, sequential ###"
-run claude_code raw        claude_raw
-run claude_code leoprevent claude_lp
-run codex       raw        codex_raw
-run codex       leoprevent codex_lp
+# BATCHES selects which of the four to run, space-separated; default all. The Claude and Codex
+# arms authenticate independently (Claude subscription vs ChatGPT), so when one provider's quota
+# is exhausted the other's batches can still make progress -- run them rather than idle.
+BATCHES=${BATCHES:-"claude_raw claude_lp codex_raw codex_lp"}
+echo "### RUN25 GEN START @ $(date '+%F %T') — batches: $BATCHES ###"
+for b in $BATCHES; do
+  case "$b" in
+    claude_raw) run claude_code raw        claude_raw ;;
+    claude_lp)  run claude_code leoprevent claude_lp  ;;
+    codex_raw)  run codex       raw        codex_raw  ;;
+    codex_lp)   run codex       leoprevent codex_lp   ;;
+    *) echo "unknown batch '$b' (want: claude_raw claude_lp codex_raw codex_lp)" >&2; exit 2 ;;
+  esac
+done
 echo "### RUN25 GEN DONE @ $(date '+%F %T') ###"
 echo "generated_code dirs:"; ls -d "$OUT"/generated_code/*/ 2>/dev/null
