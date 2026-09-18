@@ -64,7 +64,18 @@ for b in claude_raw claude_lp codex_raw codex_lp; do
   m=$(stat -f '%m' "$l")
   if [ "$m" -lt "$START" ]; then stale=$((stale+1)); continue; fi
   h=$(grep -acE 'oauth_org_not_allowed|organization has disabled' "$l")
-  [ "$h" -gt 0 ] && { echo "!! AUTH FAILURES in $b: $h"; fails=1; }
+  [ "$h" -gt 0 ] && { echo "!! AUTH FAILURES in $b: $h (org policy — see LEO/ASE notes)"; fails=1; }
+  # Subscription quota kills a run the same way auth does: every remaining instance fails fast
+  # and the orchestrator churns on to the next batch. Do NOT grep for 'rate_limit' — the SDK
+  # emits a RateLimitEvent per turn with status='allowed', so that matches hundreds of times in
+  # a perfectly healthy run. Match a status that is NOT allowed, plus real exhaustion wording.
+  q=$(grep -acE "RateLimitInfo\(status='(?!allowed)|overage_status='(?!allowed)|usage limit reached|too many requests" "$l" 2>/dev/null \
+      || grep -acE "RateLimitInfo\(status='[a-z_]*'" "$l" | xargs -I{} sh -c 'echo 0')
+  bad=$(grep -ao "RateLimitInfo(status='[a-z_]*'" "$l" | grep -vc "status='allowed'")
+  ovr=$(grep -ao "overage_status='[a-z_]*'" "$l" | grep -vc "status='allowed'")
+  txt=$(grep -acEi 'usage limit reached|too many requests|quota exceeded' "$l")
+  tot=$((bad + ovr + txt))
+  [ "$tot" -gt 0 ] && { echo "!! QUOTA signals in $b: $bad non-allowed rate-limit, $ovr overage, $txt textual"; fails=1; }
 done
 if [ "$fails" = 0 ]; then
   echo "auth: clean in this run's logs$([ "$stale" -gt 0 ] && echo " ($stale batch log(s) still from a previous attempt, ignored)")"
