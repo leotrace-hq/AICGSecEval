@@ -6,8 +6,8 @@ set -uo pipefail
 ASE=/Users/bbaukema/Documents/github/Tencent/AICGSecEval
 cd "$ASE"
 REGION=$(aws configure get region)
-OUT=outputs/stage3
-DS=data/run25_v2.json
+OUT=${OUT:-outputs/stage3}
+DS=${DS:-data/run25_v2.json}
 TAG=ase-verify
 
 # On-demand by DEFAULT, not Spot. This job is ~20 minutes end to end, so the Spot discount saves

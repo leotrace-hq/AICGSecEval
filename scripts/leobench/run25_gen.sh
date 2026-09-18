@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Generate the 25-instance A.S.E arm locally: both agents x both arms, 1 cycle.
+# Generate an A.S.E cohort locally: both agents x both arms, 1 cycle.
+# Cohort is selectable so run25 and the in-scope cohort share one orchestrator:
+#   DS/CTX/OUT override the dataset, its context and the output dir (defaults = run25).
 # Batches run SEQUENTIALLY — they share per-instance repo clones, so concurrent batches race
 # on os.makedirs(raw_repo_dir) (invoke.py). Only the leoprevent batches bill (LeoPrevent /review).
 # Verification is a SEPARATE step on the amd64 EC2 host (verify_host.sh); this only gen_codes.
@@ -20,9 +22,10 @@ export GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=60
 # invoke.py defaults --github_token to $GITHUB_TOKEN.
 export GITHUB_TOKEN; GITHUB_TOKEN=$(gh auth token)
 
-DS=data/run25_v2.json
-CTX=data/run25_context.json
-OUT=outputs/stage3
+DS=${DS:-data/run25_v2.json}
+CTX=${CTX:-data/run25_context.json}
+OUT=${OUT:-outputs/stage3}
+echo "### cohort: $DS ($(python3 -c "import json;print(len(json.load(open('$DS'))))") instances) -> $OUT ###"
 PY=.venv/bin/python
 LOGDIR="$OUT/_genlogs"; mkdir -p "$LOGDIR"
 
