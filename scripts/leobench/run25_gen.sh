@@ -29,6 +29,29 @@ echo "### cohort: $DS ($(python3 -c "import json;print(len(json.load(open('$DS')
 PY=.venv/bin/python
 LOGDIR="$OUT/_genlogs"; mkdir -p "$LOGDIR"
 
+# A batch that produced ZERO successful generations is never a normal outcome -- it means
+# something systemic (expired token, org policy change, exhausted subscription quota, dead
+# network). On 2026-09-18 an org-policy change failed all 67 instances in 18 minutes and the
+# orchestrator then churned on through the remaining three batches for nothing. Stop instead,
+# so a human looks at it while the run is still cheap to restart.
+#
+# Deliberately NOT a consecutive-failure heuristic: individual instances fail for legitimate
+# reasons all the time (a dead upstream repo, an agent that gives up), and a threshold on those
+# would eventually kill a good run. Zero-of-everything is unambiguous.
+#
+# Resume-safe: A.S.E counts already-completed instances from a previous run in this file, so a
+# batch that is fully done and skips every instance still reports its successes, not zero.
+batch_successes() {  # $1=agent  $2=batch -> prints the success count (0 if no record at all)
+  local f="$OUT/generated_code/$1__$2/processed_instances.json"
+  [ -f "$f" ] || { echo 0; return; }
+  python3 -c "
+import json
+try: d = json.load(open('$f'))
+except Exception: print(0); raise SystemExit
+print(sum(1 for v in d.values() if v.get('success')))
+" 2>/dev/null || echo 0
+}
+
 run() {  # $1=agent_name  $2=arm  $3=batch_id
   local agent="$1" arm="$2" batch="$3"
   local mflag=()
@@ -42,6 +65,19 @@ run() {  # $1=agent_name  $2=arm  $3=batch_id
       --num_cycles 1 --output_dir "$OUT" \
       2>&1 | sed -E 's/gh[pousr]_[A-Za-z0-9]{16,}/<REDACTED-GH-TOKEN>/g' | tee "$LOGDIR/${batch}.log"
   echo "[gen] $batch finished @ $(date '+%F %T')"
+
+  local ok; ok=$(batch_successes "$agent" "$batch")
+  if [ "${ok:-0}" -eq 0 ]; then
+    echo "##############################################################"
+    echo "### ABORT: $batch produced 0 successful generations."
+    echo "### Something systemic is wrong -- check auth, quota and network:"
+    echo "###   $LOGDIR/${batch}.log"
+    echo "### Remaining batches SKIPPED. Nothing is recorded as failed, so"
+    echo "### re-running this script after the fix resumes where it stopped."
+    echo "##############################################################"
+    exit 1
+  fi
+  echo "[gen] $batch: $ok successful generation(s) recorded"
 }
 
 echo "### RUN25 GEN START @ $(date '+%F %T') — 4 batches, sequential ###"
