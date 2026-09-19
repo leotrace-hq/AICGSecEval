@@ -28,7 +28,20 @@ PIDDIR="$OUT/_genlogs"; . "$ASE/scripts/leobench/_procs.sh"
 if pid_alive run25_gen run25_gen.sh; then
   echo "STATUS: generating   (started $(grep -aom1 'GEN START @ [0-9: -]*' "$OUT/_genlogs/gen.log" 2>/dev/null | sed 's/GEN START @ //'))"
 else
-  echo "STATUS: generation not running"
+  # "not running" alone is ambiguous: a finished run and a run that never started look the same,
+  # which read as failure on 2026-09-19 when in fact every batch had completed overnight.
+  _done=1
+  for _b in claude_code__claude_raw claude_code__claude_lp codex__codex_raw codex__codex_lp; do
+    _f="$OUT/generated_code/$_b/processed_instances.json"
+    _n=$([ -f "$_f" ] && python3 -c "
+import json;print(sum(1 for v in json.load(open('$_f')).values() if v.get('success')))" 2>/dev/null || echo 0)
+    [ "${_n:-0}" -ge "$TOTAL" ] || _done=0
+  done
+  if [ "$_done" = 1 ]; then
+    echo "STATUS: COMPLETE — all batches at $TOTAL (generation finished)"
+  else
+    echo "STATUS: stopped, work remaining (not currently generating)"
+  fi
 fi
 echo "now:    $(date '+%F %T')"
 echo

@@ -65,17 +65,20 @@ while :; do
   r=$(successes claude_raw); l=$(successes claude_lp)
   say "progress: claude_raw $r/$TOTAL, claude_lp $l/$TOTAL"
 
-  # Don't burn a pass through 67 instances against a window we already know is spent.
+  # Completion is checked BEFORE any wait. Ordering these the other way round made the finished
+  # run on 2026-09-18 sleep 98 minutes past 22:33 before announcing it was done.
+  if [ "$r" -ge "$TOTAL" ] && [ "$l" -ge "$TOTAL" ]; then
+    say "=== both Claude batches COMPLETE ==="
+    osascript -e "display notification \"claude_raw $r/$TOTAL, claude_lp $l/$TOTAL\" with title \"A.S.E Claude arms complete\" sound name \"Glass\"" 2>/dev/null
+    exit 0
+  fi
+
+  # Don't burn a pass through the cohort against a window we already know is spent.
   w=$(python3 scripts/leobench/_window_wait.py "$OUT/_genlogs" 2>/dev/null || echo 0)
   if [ "${w:-0}" -gt 0 ]; then
     say "current window still spent; sleeping $((w/60)) min (until $(date -r $(( $(date +%s) + w )) '+%F %T'))"
     sleep "$w"
     continue
-  fi
-  if [ "$r" -ge "$TOTAL" ] && [ "$l" -ge "$TOTAL" ]; then
-    say "=== both Claude batches COMPLETE ==="
-    osascript -e "display notification \"claude_raw $r/$TOTAL, claude_lp $l/$TOTAL\" with title \"A.S.E Claude arms complete\" sound name \"Glass\"" 2>/dev/null
-    exit 0
   fi
 
   attempt=$((attempt+1))
