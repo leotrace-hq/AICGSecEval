@@ -54,17 +54,39 @@ def load_dataset(path: str) -> dict:
 
 
 def load_scan(output_dir: str, agent: str, batch: str) -> dict | None:
-    """instance_id (cycle suffix stripped) -> verdict, or None if the batch was never verified."""
+    """instance_id -> [verdict per cycle], or None if the batch was never verified.
+
+    A multi-cycle run produces several independent completions per instance. Keying by the
+    bare instance id and assigning would keep only the last cycle and silently discard the
+    rest -- which is the entire point of running more cycles.
+    """
     path = os.path.join(output_dir, "generated_code", f"{agent}__{batch}", "scan_results.json")
     if not os.path.exists(path):
         return None
     with open(path) as fh:
         rows = json.load(fh)
-    out = {}
+    out = defaultdict(list)
     for row in rows:
-        inst = CYCLE_RE.sub("", row["instance_id"])
-        out[inst] = classify(row)
-    return out
+        out[CYCLE_RE.sub("", row["instance_id"])].append(classify(row))
+    return dict(out)
+
+
+def vuln_fraction(verdicts: list) -> float | None:
+    """Share of JUDGED cycles that were exploitable; None when no cycle carried a verdict."""
+    judged = [v for v in verdicts if v != BROKEN]
+    if not judged:
+        return None
+    return sum(1 for v in judged if v == VULNERABLE) / len(judged)
+
+
+def sign_test(better: int, worse: int) -> float:
+    """Exact two-sided binomial on discordant instances (McNemar for 1 cycle)."""
+    from math import comb
+    n = better + worse
+    if n == 0:
+        return 1.0
+    return sum(comb(n, k) for k in range(n + 1)
+               if abs(k - n / 2) >= abs(better - n / 2)) / 2 ** n
 
 
 def pct(n: int, d: int) -> str:
@@ -72,7 +94,7 @@ def pct(n: int, d: int) -> str:
 
 
 def rate_line(label: str, verdicts: dict, width: int = 22) -> str:
-    c = Counter(verdicts.values())
+    c = Counter(v for vs in verdicts.values() for v in vs)   # pool every cycle
     judged = c[SAFE] + c[VULNERABLE]
     return "%-*s %3d safe  %3d vulnerable  %3d broken   vuln-rate %s of %d judged" % (
         width, label, c[SAFE], c[VULNERABLE], c[BROKEN], pct(c[VULNERABLE], judged), judged
@@ -80,18 +102,24 @@ def rate_line(label: str, verdicts: dict, width: int = 22) -> str:
 
 
 def transitions(raw: dict, lp: dict) -> dict:
-    """Paired per-instance transition, restricted to instances judged in BOTH arms."""
+    """Paired per-instance comparison of exploitable-cycle fractions.
+
+    With one cycle each fraction is 0 or 1 and this reduces exactly to the old
+    vuln->safe / safe->vuln transition table. With more cycles it also captures partial
+    movement (3/3 exploitable down to 1/3), which is what extra cycles buy: agents are
+    nondeterministic, so a single sample per arm confuses run-to-run variance with effect.
+    """
     out = defaultdict(list)
     for inst in sorted(set(raw) & set(lp)):
-        a, b = raw[inst], lp[inst]
-        if a == BROKEN or b == BROKEN:
+        a, b = vuln_fraction(raw[inst]), vuln_fraction(lp[inst])
+        if a is None or b is None:
             out["unjudged (broken in one arm)"].append(inst)
-        elif a == VULNERABLE and b == SAFE:
-            out["PREVENTED (vuln -> safe)"].append(inst)
-        elif a == SAFE and b == VULNERABLE:
-            out["REGRESSED (safe -> vuln)"].append(inst)
-        elif a == VULNERABLE and b == VULNERABLE:
-            out["missed (vuln in both)"].append(inst)
+        elif b < a:
+            out["PREVENTED (less exploitable under leoprevent)"].append(inst)
+        elif b > a:
+            out["REGRESSED (more exploitable under leoprevent)"].append(inst)
+        elif a == 1.0:
+            out["missed (exploitable in both)"].append(inst)
         else:
             out["clean in both"].append(inst)
     return out
@@ -111,7 +139,7 @@ def breakdown(title: str, key: str, insts: list, dataset: dict, raw: dict, lp: d
     for g, members in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0])):
         cells = []
         for arm in (raw, lp):
-            c = Counter(arm[i] for i in members if i in arm)
+            c = Counter(v for i in members if i in arm for v in arm[i])
             judged = c[SAFE] + c[VULNERABLE]
             cells.append("%d vuln / %d judged %s" % (c[VULNERABLE], judged, pct(c[VULNERABLE], judged)))
         lines.append("    %-18s %-22s %-22s" % (g, cells[0], cells[1]))
@@ -167,16 +195,20 @@ def main() -> int:
                            % (label, len(absent), ", ".join(absent)))
 
         for arm_name, arm in ((raw_batch, raw), (lp_batch, lp)):
-            for inst, verdict in sorted(arm.items()):
+            for inst, verdicts in sorted(arm.items()):
                 d = dataset.get(inst, {})
-                cells.append({"agent": agent, "batch": arm_name, "instance_id": inst,
-                              "language": d.get("language", "?"), "cwe_id": d.get("cwe_id", "?"),
-                              "repo": d.get("repo", "?"), "verdict": verdict})
+                for cyc, verdict in enumerate(verdicts, 1):
+                    cells.append({"agent": agent, "batch": arm_name, "instance_id": inst,
+                                  "cycle": cyc,
+                                  "language": d.get("language", "?"), "cwe_id": d.get("cwe_id", "?"),
+                                  "repo": d.get("repo", "?"), "verdict": verdict})
 
         out.append("\n  paired transition raw -> leoprevent:")
         tr = transitions(raw, lp)
-        for label in ("PREVENTED (vuln -> safe)", "REGRESSED (safe -> vuln)",
-                      "missed (vuln in both)", "clean in both", "unjudged (broken in one arm)"):
+        for label in ("PREVENTED (less exploitable under leoprevent)",
+                      "REGRESSED (more exploitable under leoprevent)",
+                      "missed (exploitable in both)", "clean in both",
+                      "unjudged (broken in one arm)"):
             members = tr.get(label, [])
             out.append("    %-30s %3d" % (label, len(members)))
             for inst in members:
@@ -188,9 +220,17 @@ def main() -> int:
         out.extend(breakdown("language", "language", both, dataset, raw, lp))
         out.extend(breakdown("CWE", "cwe_id", both, dataset, raw, lp))
 
-        prevented, regressed = len(tr.get("PREVENTED (vuln -> safe)", [])), len(tr.get("REGRESSED (safe -> vuln)", []))
-        rc, lc = Counter(raw.values()), Counter(lp.values())
-        md.append("| %s | %d | %d | %d | %d |" % (agent, rc[VULNERABLE], lc[VULNERABLE], prevented, regressed))
+        prevented = len(tr.get("PREVENTED (less exploitable under leoprevent)", []))
+        regressed = len(tr.get("REGRESSED (more exploitable under leoprevent)", []))
+        pval = sign_test(prevented, regressed)
+        ncyc = max((len(v) for v in raw.values()), default=0)
+        out.append("\n  paired sign test over instances: %d better, %d worse, exact two-sided p = %.3f  -> %s"
+                   % (prevented, regressed, pval,
+                      "SIGNIFICANT at 0.05" if pval < 0.05 else "NOT significant at 0.05"))
+        out.append("  (%d cycle(s) per instance per arm)" % ncyc)
+        rc = Counter(v for vs in raw.values() for v in vs)
+        lc = Counter(v for vs in lp.values() for v in vs)
+        md.append("| %s | %d | %d | %d | %d | %.3f |" % (agent, rc[VULNERABLE], lc[VULNERABLE], prevented, regressed, pval))
 
     report = "\n".join(out)
     print(report)
@@ -208,8 +248,8 @@ def main() -> int:
             fh.write("Dataset `%s`. VULNERABLE = exploit fired against code that built and passed\n"
                      "its functional tests; cells that failed to build or test carry no verdict.\n\n"
                      % os.path.basename(args.dataset))
-            fh.write("| agent | raw vulnerable | leoprevent vulnerable | prevented | regressed |\n")
-            fh.write("|---|---|---|---|---|\n")
+            fh.write("| agent | raw vulnerable | leoprevent vulnerable | better | worse | sign-test p |\n")
+            fh.write("|---|---|---|---|---|---|\n")
             fh.write("\n".join(md) + "\n")
         print(f"[wrote {args.markdown}]")
 

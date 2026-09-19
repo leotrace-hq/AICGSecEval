@@ -25,6 +25,9 @@ export GITHUB_TOKEN; GITHUB_TOKEN=$(gh auth token)
 DS=${DS:-data/run25_v2.json}
 CTX=${CTX:-data/run25_context.json}
 OUT=${OUT:-outputs/stage3}
+# A.S.E keys completions as <instance>_cycleN and skips keys already recorded, so raising
+# CYCLES adds the new cycles and reuses the ones already generated.
+CYCLES=${CYCLES:-1}
 echo "### cohort: $DS ($(python3 -c "import json;print(len(json.load(open('$DS'))))") instances) -> $OUT ###"
 PY=.venv/bin/python
 LOGDIR="$OUT/_genlogs"; mkdir -p "$LOGDIR"
@@ -64,7 +67,7 @@ run() {  # $1=agent_name  $2=arm  $3=batch_id
   "$PY" invoke.py --run_step gen_code \
       --agent --agent_name "$agent" --arm "$arm" "${mflag[@]}" \
       --batch_id "$batch" --dataset_path "$DS" --retrieval_data_path "$CTX" \
-      --num_cycles 1 --output_dir "$OUT" \
+      --num_cycles "$CYCLES" --output_dir "$OUT" \
       2>&1 | sed -E 's/gh[pousr]_[A-Za-z0-9]{16,}/<REDACTED-GH-TOKEN>/g' | tee "$LOGDIR/${batch}.log"
   echo "[gen] $batch finished @ $(date '+%F %T')"
 
