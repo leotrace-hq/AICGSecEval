@@ -20,7 +20,10 @@ OUT=${OUT:-outputs/inscope}
 PIDDIR="$OUT/_genlogs"; . scripts/leobench/_procs.sh
 pid_write claude_windows
 LOG="$OUT/_genlogs/claude_windows.log"
-TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))))")
+# A.S.E records one entry per instance PER CYCLE, so the completion target scales with
+# CYCLES. Without this the scheduler declares victory at 67 of 201 and stops early.
+CYCLES=${CYCLES:-1}
+TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))) * $CYCLES)")
 
 say() { echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
 

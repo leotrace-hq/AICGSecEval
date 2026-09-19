@@ -9,7 +9,10 @@ PIDDIR="$OUT/_genlogs"; . scripts/leobench/_procs.sh
 pid_write watchdog
 DS=${DS:-data/inscope_v2.json}
 LOG="$OUT/_genlogs/watchdog.log"
-TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))))")
+# A.S.E records one entry per instance PER CYCLE, so the completion target scales with
+# CYCLES. Without this the scheduler declares victory at 67 of 201 and stops early.
+CYCLES=${CYCLES:-1}
+TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))) * $CYCLES)")
 say() { echo "[$(date '+%F %T')] $*" >> "$LOG"; }
 
 successes() {
@@ -36,7 +39,7 @@ while :; do
       say "scheduler absent but another batch run is active - holding off"
     else
       say "scheduler NOT running with work left (raw $r/$TOTAL, lp $l/$TOTAL) - restarting it"
-      nohup ./scripts/leobench/claude_windows.sh >> "$OUT/_genlogs/claude_windows_stdout.log" 2>&1 &
+      CYCLES="$CYCLES" nohup ./scripts/leobench/claude_windows.sh >> "$OUT/_genlogs/claude_windows_stdout.log" 2>&1 &
       sleep 10
       if pid_alive claude_windows claude_windows.sh; then
         say "restarted ok (pid $(pid_of claude_windows))"
