@@ -28,6 +28,8 @@ OUT=${OUT:-outputs/stage3}
 # A.S.E keys completions as <instance>_cycleN and skips keys already recorded, so raising
 # CYCLES adds the new cycles and reuses the ones already generated.
 CYCLES=${CYCLES:-1}
+AUTH=${AUTH:-subscription}
+CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5}
 echo "### cohort: $DS ($(python3 -c "import json;print(len(json.load(open('$DS'))))") instances) -> $OUT ###"
 PY=.venv/bin/python
 LOGDIR="$OUT/_genlogs"; mkdir -p "$LOGDIR"
@@ -60,7 +62,7 @@ print(sum(1 for v in d.values() if v.get('success')))
 run() {  # $1=agent_name  $2=arm  $3=batch_id
   local agent="$1" arm="$2" batch="$3"
   local mflag=()
-  [ "$agent" = claude_code ] && mflag=(--claude_model claude-sonnet-4-5)  # 4.5 dodges Sonnet-5 cyber safeguards; codex: default
+  [ "$agent" = claude_code ] && mflag=(--claude_model "$CLAUDE_MODEL" --auth "$AUTH")  # codex: default
   echo "=========================================================="
   echo "[gen] $agent / $arm -> batch=$batch  @ $(date '+%F %T')"
   echo "=========================================================="

@@ -70,9 +70,10 @@ class ClaudeCodeAgentBench(AgentBenchBase):
         # --- LeoBench arm/auth options ---
         parser.add_argument("--arm", type=str, choices=["raw", "leoprevent"], default="raw",
                             help="raw = agent alone; leoprevent = agent with the LeoPrevent review plugin")
-        parser.add_argument("--auth", type=str, choices=["subscription", "api-key"],
+        parser.add_argument("--auth", type=str, choices=["subscription", "api-key", "bedrock"],
                             default="subscription",
-                            help="subscription uses CLAUDE_CODE_OAUTH_TOKEN and refuses to fall back to a billed API key")
+                            help="subscription uses CLAUDE_CODE_OAUTH_TOKEN; bedrock uses AWS credentials; "
+                                 "api-key uses Anthropic billing")
         parser.add_argument("--env_file", type=str,
                             default=os.environ.get("LEOPREVENT_ENV_FILE"),
                             help="KEY=VALUE file holding CLAUDE_CODE_OAUTH_TOKEN (default $LEOPREVENT_ENV_FILE; "
@@ -103,6 +104,17 @@ class ClaudeCodeAgentBench(AgentBenchBase):
             env["CLAUDE_CODE_OAUTH_TOKEN"] = token
             for k in _API_OVERRIDES:          # strip anything that outranks the subscription token
                 env.pop(k, None)
+        elif self._auth == "bedrock":
+            # Bedrock uses the normal AWS credential chain. Remove every Anthropic/other-cloud
+            # credential that could take precedence and make the billing route unambiguous.
+            for k in (
+                "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN",
+                "ANTHROPIC_BASE_URL", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY",
+            ):
+                env.pop(k, None)
+            env["CLAUDE_CODE_USE_BEDROCK"] = "1"
+            if not env.get("AWS_REGION") and not env.get("AWS_DEFAULT_REGION"):
+                raise RuntimeError("--auth bedrock needs AWS_REGION or AWS_DEFAULT_REGION")
         else:  # api-key: the original billed path
             if self._api_url:
                 env["ANTHROPIC_BASE_URL"] = self._api_url

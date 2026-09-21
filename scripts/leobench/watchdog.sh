@@ -12,6 +12,8 @@ LOG="$OUT/_genlogs/watchdog.log"
 # A.S.E records one entry per instance PER CYCLE, so the completion target scales with
 # CYCLES. Without this the scheduler declares victory at 67 of 201 and stops early.
 CYCLES=${CYCLES:-1}
+AUTH=${AUTH:-subscription}
+CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5}
 TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))) * $CYCLES)")
 say() { echo "[$(date '+%F %T')] $*" >> "$LOG"; }
 
@@ -25,7 +27,7 @@ except Exception: print(0); raise SystemExit
 print(sum(1 for v in d.values() if v.get('success')))" 2>/dev/null || echo 0
 }
 
-say "watchdog started (need $TOTAL per Claude batch)"
+say "watchdog started (need $TOTAL per Claude batch, auth=$AUTH, model=$CLAUDE_MODEL)"
 while :; do
   r=$(successes claude_raw); l=$(successes claude_lp)
   if [ "$r" -ge "$TOTAL" ] && [ "$l" -ge "$TOTAL" ]; then
@@ -39,7 +41,8 @@ while :; do
       say "scheduler absent but another batch run is active - holding off"
     else
       say "scheduler NOT running with work left (raw $r/$TOTAL, lp $l/$TOTAL) - restarting it"
-      CYCLES="$CYCLES" nohup ./scripts/leobench/claude_windows.sh >> "$OUT/_genlogs/claude_windows_stdout.log" 2>&1 &
+      CYCLES="$CYCLES" AUTH="$AUTH" CLAUDE_MODEL="$CLAUDE_MODEL" \
+        nohup ./scripts/leobench/claude_windows.sh >> "$OUT/_genlogs/claude_windows_stdout.log" 2>&1 &
       sleep 10
       if pid_alive claude_windows claude_windows.sh; then
         say "restarted ok (pid $(pid_of claude_windows))"

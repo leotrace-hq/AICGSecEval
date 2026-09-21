@@ -23,6 +23,8 @@ LOG="$OUT/_genlogs/claude_windows.log"
 # A.S.E records one entry per instance PER CYCLE, so the completion target scales with
 # CYCLES. Without this the scheduler declares victory at 67 of 201 and stops early.
 CYCLES=${CYCLES:-1}
+AUTH=${AUTH:-subscription}
+CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5}
 TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))) * $CYCLES)")
 
 say() { echo "[$(date '+%F %T')] $*" | tee -a "$LOG"; }
@@ -55,7 +57,7 @@ auth_broken() {  # a genuine auth failure, as distinct from a spent quota
        "$OUT/_genlogs/claude_lp.log" 2>/dev/null
 }
 
-say "=== claude window scheduler starting (need $TOTAL per batch) ==="
+say "=== claude scheduler starting (need $TOTAL per batch, auth=$AUTH, model=$CLAUDE_MODEL) ==="
 
 # Constraint 1: never overlap with another orchestrator.
 while pid_alive run25_gen run25_gen.sh; do
@@ -77,7 +79,10 @@ while :; do
   fi
 
   # Don't burn a pass through the cohort against a window we already know is spent.
-  w=$(python3 scripts/leobench/_window_wait.py "$OUT/_genlogs" 2>/dev/null || echo 0)
+  w=0
+  if [ "$AUTH" = subscription ]; then
+    w=$(python3 scripts/leobench/_window_wait.py "$OUT/_genlogs" 2>/dev/null || echo 0)
+  fi
   if [ "${w:-0}" -gt 0 ]; then
     say "current window still spent; sleeping $((w/60)) min (until $(date -r $(( $(date +%s) + w )) '+%F %T'))"
     sleep "$w"
@@ -87,6 +92,7 @@ while :; do
   attempt=$((attempt+1))
   say "--- window attempt $attempt: running claude_raw then claude_lp ---"
   BATCHES="claude_raw claude_lp" DS="$DS" CTX="$CTX" OUT="$OUT" \
+    AUTH="$AUTH" CLAUDE_MODEL="$CLAUDE_MODEL" \
     ./scripts/leobench/run25_gen.sh >> "$OUT/_genlogs/gen_claude_w${attempt}.log" 2>&1
   rc=$?
   say "run25_gen.sh exited $rc"
@@ -100,14 +106,19 @@ while :; do
   r=$(successes claude_raw); l=$(successes claude_lp)
   if [ "$r" -ge "$TOTAL" ] && [ "$l" -ge "$TOTAL" ]; then continue; fi
 
-  ts=$(resets_at)
   now=$(date '+%s')
-  if [ -n "$ts" ] && [ "$ts" -gt "$now" ]; then
-    wait_s=$(( ts - now + 120 ))            # small buffer past the reset
+  if [ "$AUTH" = bedrock ]; then
+    wait_s=300
+    say "Bedrock attempt incomplete; backing off ${wait_s}s before a resume"
   else
-    wait_s=1800                             # unknown reset: re-check in 30 min
-    say "reset time unknown; backing off ${wait_s}s"
+    ts=$(resets_at)
+    if [ -n "$ts" ] && [ "$ts" -gt "$now" ]; then
+      wait_s=$(( ts - now + 120 ))          # small buffer past the reset
+    else
+      wait_s=1800                           # unknown reset: re-check in 30 min
+      say "reset time unknown; backing off ${wait_s}s"
+    fi
   fi
-  say "quota window spent; sleeping $((wait_s/60)) min until $(date -r $((now+wait_s)) '+%F %T')"
+  say "sleeping $((wait_s/60)) min until $(date -r $((now+wait_s)) '+%F %T')"
   sleep "$wait_s"
 done
