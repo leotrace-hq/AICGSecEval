@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import difflib
 import html
 import json
@@ -281,8 +282,12 @@ def main() -> int:
     ap.add_argument("--cycle", type=int, default=1)
     ap.add_argument("--cycles", type=int,
                     help="aggregate cycles 1..N (overrides --cycle)")
+    ap.add_argument("--exclude-consistently-broken", action="store_true",
+                    help="exclude tasks where every agent/arm/cycle cell is BROKEN")
     ap.add_argument("--output", default="inscope_cycle1_results.html")
     ap.add_argument("--csv-link", default="inscope_cycle1_cells.csv")
+    ap.add_argument("--source-csv", help="source per-cell CSV to filter with the HTML cohort")
+    ap.add_argument("--filtered-csv", help="write the HTML cohort's per-cell rows here")
     args = ap.parse_args()
     cycles = list(range(1, args.cycles + 1)) if args.cycles else [args.cycle]
     cycle_count = len(cycles)
@@ -317,6 +322,27 @@ def main() -> int:
         ("claude_code", "Claude Sonnet 4.5", "claude_raw", "claude_lp"),
         ("codex", "Codex Terra", "codex_raw", "codex_lp"),
     ]
+
+    excluded_instances: set[str] = set()
+    if args.exclude_consistently_broken:
+        verdicts = defaultdict(list)
+        for agent, _label, raw_batch, lp_batch in specs:
+            for batch in (raw_batch, lp_batch):
+                for cycle in cycles:
+                    for instance, verdict in load_arm(
+                        args.output_dir, agent, batch, cycle
+                    ).items():
+                        verdicts[instance].append(verdict)
+        expected_cells = len(specs) * 2 * cycle_count
+        excluded_instances = {
+            instance for instance in dataset
+            if len(verdicts[instance]) == expected_cells
+            and all(verdict == BROKEN for verdict in verdicts[instance])
+        }
+        dataset = {
+            instance: row for instance, row in dataset.items()
+            if instance not in excluded_instances
+        }
 
     agents = []
     all_rows = []
@@ -446,9 +472,9 @@ def main() -> int:
         a[arm][SAFE] + a[arm][VULNERABLE] for a in agents for arm in ("raw", "lp")
     )
     broken_cells = cell_runs - verdict_cells
-    repos = len({row.get("repo") for row in dataset_rows})
-    cwes = len({str(row.get("cwe_id", "?")).upper() for row in dataset_rows})
-    languages = len({row.get("language") for row in dataset_rows})
+    repos = len({row.get("repo") for row in dataset.values()})
+    cwes = len({str(row.get("cwe_id", "?")).upper() for row in dataset.values()})
+    languages = len({row.get("language") for row in dataset.values()})
 
     model_rows = []
     for a in agents:
@@ -553,6 +579,12 @@ def main() -> int:
         "The result is valid preliminary evidence, but not a stable effect estimate. "
         "The three-cycle run remains in progress."
     )
+    exclusion_note = (
+        f" <b>Cohort filter.</b> {len(excluded_instances)} tasks were excluded because all "
+        f"{len(specs) * 2 * cycle_count} agent/arm/cycle cells were broken; intermittent "
+        "generation failures remain visible and unjudged."
+        if excluded_instances else ""
+    )
     html_doc = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>LeoBench A.S.E {esc(cycle_label)} result</title>
@@ -582,7 +614,7 @@ def main() -> int:
 <div class="mwrap"><table class="matrix ledger"><thead><tr><th>task / repository</th><th>agent</th><th>language</th><th>weakness</th><th>raw</th><th>with LeoPrevent</th><th>transition</th></tr></thead><tbody>{''.join(ledger_rows)}</tbody></table></div></section>
 
 <section><div class="sechead"><div class="eyebrow"><b>04</b> Method and limits</div><h2>What this result does—and does not—show</h2></div><div class="limitations"><div class="lim"><b>Complete {cycle_count}-cycle run</b><p>{len(dataset)} tasks across {repos} repositories, {languages} languages and {cwes} normalized CWE classes. Both agents completed raw and LeoPrevent arms in every cycle.</p></div><div class="lim"><b>{broken_cells} broken cells</b><p>Build or functional-test failures are reported as BROKEN and excluded from security rates. They are not counted as safe.</p></div><div class="lim"><b>{iteration_title}</b><p>{iteration_text}</p></div></div>
-<div class="note"><b>Agents.</b> Claude Code used <code>claude-sonnet-4-5</code>; Codex used the subscription default recorded during cycle 1, <code>gpt-5.6-terra</code>. <b>Outcome semantics.</b> SAFE means the functional test passed and the exploit did not fire; VULNERABLE means the functional test passed and the exploit fired.</div></section>
+<div class="note"><b>Agents.</b> Claude Code used <code>claude-sonnet-4-5</code>; Codex used the subscription default recorded during cycle 1, <code>gpt-5.6-terra</code>. <b>Outcome semantics.</b> SAFE means the functional test passed and the exploit did not fire; VULNERABLE means the functional test passed and the exploit fired.{exclusion_note}</div></section>
 <footer>Generated {esc(generated)} · dataset <code>{esc(os.path.basename(args.dataset))}</code> · {esc(cycle_label.lower())}<br>Source artifacts: <code>{esc(args.output_dir)}</code> · per-cell CSV: <a href="{esc(args.csv_link)}">{esc(args.csv_link)}</a></footer>
 </div><script>
 const root=document.documentElement;document.getElementById('theme').onclick=()=>{{root.dataset.theme=root.dataset.theme==='dark'?'light':'dark'}};
@@ -596,6 +628,18 @@ if(location.hash.startsWith('#cell-')){{const key=location.hash.slice(6),row=row
 
     with open(args.output, "w", encoding="utf-8") as fh:
         fh.write(html_doc)
+    if args.filtered_csv:
+        if not args.source_csv:
+            raise SystemExit("--filtered-csv requires --source-csv")
+        with open(args.source_csv, newline="", encoding="utf-8") as fh:
+            source_rows = list(csv.DictReader(fh))
+            fieldnames = list(source_rows[0]) if source_rows else []
+        filtered_rows = [row for row in source_rows if row.get("instance_id") in dataset]
+        with open(args.filtered_csv, "w", newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(filtered_rows)
+        print(f"wrote {args.filtered_csv} ({len(filtered_rows)} cell rows)")
     print(f"wrote {args.output} ({len(html_doc):,} bytes; {len(all_rows)} paired rows)")
     return 0
 
