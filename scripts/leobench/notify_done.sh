@@ -10,7 +10,9 @@ cd "$ASE"
 while kill -0 "$PID" 2>/dev/null; do sleep 30; done
 sleep 5
 
-TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))))")
+case "$OUT" in */outputs/inscope|outputs/inscope) DEFAULT_CYCLES=3;; *) DEFAULT_CYCLES=1;; esac
+CYCLES=${CYCLES:-$DEFAULT_CYCLES}
+TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))) * $CYCLES)")
 msg=$(python3 -c "
 import json,os
 out=[]

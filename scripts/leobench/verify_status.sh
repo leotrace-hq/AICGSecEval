@@ -20,7 +20,9 @@ fi
 OUT=${1:-outputs/inscope}; DS=${2:-data/inscope_v2.json}
 case "$OUT" in /*) ;; *) OUT="$ASE/$OUT";; esac
 case "$DS"  in /*) ;; *) DS="$ASE/$DS";;  esac
-TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))))")
+case "$OUT" in */outputs/inscope) DEFAULT_CYCLES=3;; *) DEFAULT_CYCLES=1;; esac
+CYCLES=${3:-${CYCLES:-$DEFAULT_CYCLES}}
+TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))) * $CYCLES)")
 
 if pgrep -qf "run_step security_scan" 2>/dev/null || pgrep -f "invoke.py.*security_scan" >/dev/null 2>&1; then
   echo "STATUS: verifying    now $(date '+%F %T')"

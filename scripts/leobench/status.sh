@@ -22,7 +22,11 @@ fi
 OUT=${1:-outputs/inscope}; DS=${2:-data/inscope_v2.json}
 case "$OUT" in /*) ;; *) OUT="$ASE/$OUT";; esac
 case "$DS"  in /*) ;; *) DS="$ASE/$DS";;  esac
-TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))))")
+# The default in-scope benchmark is a three-cycle run. Other cohorts remain one cycle unless
+# CYCLES (or the third positional argument) says otherwise.
+case "$OUT" in */outputs/inscope) DEFAULT_CYCLES=3;; *) DEFAULT_CYCLES=1;; esac
+CYCLES=${3:-${CYCLES:-$DEFAULT_CYCLES}}
+TOTAL=$(python3 -c "import json;print(len(json.load(open('$DS'))) * $CYCLES)")
 
 PIDDIR="$OUT/_genlogs"; . "$ASE/scripts/leobench/_procs.sh"
 if pid_alive run25_gen run25_gen.sh; then
@@ -39,6 +43,13 @@ import json;print(sum(1 for v in json.load(open('$_f')).values() if v.get('succe
   done
   if [ "$_done" = 1 ]; then
     echo "STATUS: COMPLETE — all batches at $TOTAL (generation finished)"
+  elif pid_alive claude_windows claude_windows.sh; then
+    _wait=$(python3 "$ASE/scripts/leobench/_window_wait.py" "$OUT/_genlogs" 2>/dev/null || echo 0)
+    if [ "${_wait:-0}" -gt 0 ]; then
+      echo "STATUS: waiting for Claude quota reset — $(date -r $(( $(date +%s) + _wait )) '+%F %T')"
+    else
+      echo "STATUS: Claude scheduler active (between attempts)"
+    fi
   else
     echo "STATUS: stopped, work remaining (not currently generating)"
   fi
