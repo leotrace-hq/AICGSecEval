@@ -238,7 +238,7 @@ def review_response_html(review: dict | None) -> str:
     not block, so this is where the agent decides to fix, defer, or ignore the finding."""
     if not review:
         return ""
-    text = review.get("agent_response")
+    text = review.get("_agent_response") or review.get("agent_response")
     if not text:
         return ""
     return (
@@ -442,6 +442,10 @@ def main() -> int:
             outcome = outcomes.get(str(event.get("review_id", "")))
             if outcome and outcome.get("before"):
                 event["_review_files"] = outcome["before"]
+            if outcome and outcome.get("agent_response"):
+                # agent_response lives on the outcome event; surface it on the review
+                # event that gets mapped to the cell.
+                event["_agent_response"] = outcome["agent_response"]
             for changed_file in event.get("files") or []:
                 key = (repo, str(event.get("agent", "")), str(changed_file.get("path", "")))
                 audit_groups[key].append(event)
