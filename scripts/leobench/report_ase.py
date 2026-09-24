@@ -34,9 +34,6 @@ from collections import Counter, defaultdict
 
 BROKEN, SAFE, VULNERABLE = "BROKEN", "SAFE", "VULNERABLE"
 
-# A.S.E appends _cycleN to the instance id in scan_results.json
-CYCLE_RE = re.compile(r"_cycle\d+$")
-
 
 def classify(row: dict) -> str:
     """A.S.E's verdict semantics -- see module docstring."""
@@ -53,22 +50,34 @@ def load_dataset(path: str) -> dict:
     return {d["instance_id"]: d for d in data}
 
 
-def load_scan(output_dir: str, agent: str, batch: str) -> dict | None:
+def load_scan(output_dir: str, agent: str, batch: str, max_cycles: int | None = None) -> dict | None:
     """instance_id -> [verdict per cycle], or None if the batch was never verified.
 
-    A multi-cycle run produces several independent completions per instance. Keying by the
-    bare instance id and assigning would keep only the last cycle and silently discard the
-    rest -- which is the entire point of running more cycles.
+    Reads the per-cycle scan_results/*_cycleN_output.json files -- the same authoritative
+    source report_ase_html.py uses -- rather than the aggregated scan_results.json. The
+    aggregated file can drift out of sync with the per-cycle files after a re-verification,
+    which silently mis-orders the per-cycle verdicts in the CSV (the per-instance multiset
+    stays right, so pooled rates are unaffected, but each cell's cycle label is wrong). A
+    multi-cycle run produces several independent completions per instance; keying by the bare
+    instance id would keep only one and discard the rest.
     """
-    path = os.path.join(output_dir, "generated_code", f"{agent}__{batch}", "scan_results.json")
-    if not os.path.exists(path):
+    root = os.path.join(output_dir, "generated_code", f"{agent}__{batch}", "scan_results")
+    if not os.path.isdir(root):
         return None
-    with open(path) as fh:
-        rows = json.load(fh)
     out = defaultdict(list)
-    for row in rows:
-        out[CYCLE_RE.sub("", row["instance_id"])].append(classify(row))
-    return dict(out)
+    for name in os.listdir(root):
+        match = re.match(r"(.+)_cycle(\d+)_output\.json$", name)
+        if not match:
+            continue
+        cycle = int(match.group(2))
+        if max_cycles is not None and cycle > max_cycles:
+            continue
+        with open(os.path.join(root, name), encoding="utf-8") as fh:
+            out[match.group(1)].append((cycle, classify(json.load(fh))))
+    return {
+        instance: [verdict for _cycle, verdict in sorted(verdicts)]
+        for instance, verdicts in out.items()
+    }
 
 
 def vuln_fraction(verdicts: list) -> float | None:
@@ -155,6 +164,8 @@ def main() -> int:
                     help="repeatable; default: claude_code:claude_raw:claude_lp and codex:codex_raw:codex_lp")
     ap.add_argument("--markdown", help="also write a markdown table here")
     ap.add_argument("--csv", help="also write the per-cell verdicts here")
+    ap.add_argument("--cycles", type=int,
+                    help="include only cycles 1..N; default includes every recorded cycle")
     args = ap.parse_args()
 
     specs = args.agent or ["claude_code:claude_raw:claude_lp", "codex:codex_raw:codex_lp"]
@@ -173,7 +184,8 @@ def main() -> int:
             print(f"bad --agent spec {spec!r}, want AGENT:RAW_BATCH:LP_BATCH", file=sys.stderr)
             return 2
 
-        raw, lp = load_scan(args.output_dir, agent, raw_batch), load_scan(args.output_dir, agent, lp_batch)
+        raw = load_scan(args.output_dir, agent, raw_batch, args.cycles)
+        lp = load_scan(args.output_dir, agent, lp_batch, args.cycles)
         out.append("\n" + "=" * 78 + f"\n{agent}\n" + "=" * 78)
         missing = [b for b, v in ((raw_batch, raw), (lp_batch, lp)) if v is None]
         if missing:
@@ -181,6 +193,12 @@ def main() -> int:
             out.append("  (run scripts/leobench/verify4.sh first)")
             continue
         any_data = True
+
+        # The dataset is the cohort boundary. Scan files can contain rows from an
+        # earlier, larger cohort, including instances later invalidated by audit.
+        # Never let those stale rows leak back into rates, transitions, or CSVs.
+        raw = {instance: verdicts for instance, verdicts in raw.items() if instance in dataset}
+        lp = {instance: verdicts for instance, verdicts in lp.items() if instance in dataset}
 
         out.append("  " + rate_line("raw", raw))
         out.append("  " + rate_line("leoprevent", lp))
