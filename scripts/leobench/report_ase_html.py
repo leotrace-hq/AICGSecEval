@@ -34,6 +34,14 @@ def esc(value: object) -> str:
     return html.escape(str(value), quote=True)
 
 
+def short_revision(value: object) -> str:
+    """Abbreviate a revision without hiding a parent selector such as `commit^`."""
+    revision = str(value)
+    suffix = "^" if revision.endswith("^") else ""
+    core = revision[:-1] if suffix else revision
+    return core[:8] + suffix
+
+
 def cve_explanation(meta: dict) -> str:
     source = str(meta.get("vuln_source", "Unknown vulnerability"))
     if source in CVE_EXPLANATIONS:
@@ -160,7 +168,7 @@ def diff_text(
     after: str,
     before_label: str,
     after_label: str,
-    limit: int = 180,
+    limit: int | None = 180,
     unchanged_output: str = "",
 ) -> str:
     lines = list(difflib.unified_diff(
@@ -168,7 +176,7 @@ def diff_text(
     ))
     if not lines:
         return unchanged_output or "(agent output matches the vulnerable baseline)"
-    if len(lines) > limit:
+    if limit is not None and len(lines) > limit:
         lines = lines[:limit] + [f"… diff truncated after {limit} lines …"]
     return "\n".join(lines)
 
@@ -223,6 +231,112 @@ def findings_html(event: dict | None) -> str:
             )
         )
     return "".join(rows)
+
+
+def review_response_html(review: dict | None) -> str:
+    """The agent's own reply after the review was injected. LeoPrevent advises, it does
+    not block, so this is where the agent decides to fix, defer, or ignore the finding."""
+    if not review:
+        return ""
+    text = review.get("agent_response")
+    if not text:
+        return ""
+    return (
+        '<details class="review-response"><summary>Agent&#39;s response to the review</summary>'
+        f'<pre class="resp">{esc(text)}</pre></details>'
+    )
+
+
+def review_diff_text(
+    event: dict | None,
+    repo_dir: str,
+    fallback_files: dict[str, str] | None = None,
+) -> str:
+    """Reconstruct the exact code diff supplied to a LeoPrevent review."""
+    if not event:
+        return "(no cell-level LeoPrevent review event was recorded)"
+    revision = str(event.get("baseline_head", ""))
+    rendered = []
+    fallback_files = fallback_files or {}
+    for changed_file in event.get("_review_files") or event.get("files") or []:
+        path = str(changed_file.get("path", "?"))
+        after = changed_file.get("full_content")
+        if after is None and event.get("verdict") == "clean":
+            # Clean reviews have no intervention step, so the shipped file is the
+            # same file LeoPrevent reviewed. Older clean events omitted code bodies.
+            after = fallback_files.get(path)
+        if after is not None:
+            before = git_blob(repo_dir, revision, path)
+            rendered.append(diff_text(
+                before, str(after), f"a/{path}", f"b/{path}", limit=None,
+                unchanged_output="(reviewed file matched its baseline)",
+            ))
+            continue
+        added = str(changed_file.get("added_text", ""))
+        line_numbers = changed_file.get("added_line_nums") or []
+        added_lines = "\n".join(f"+{line}" for line in added.splitlines())
+        location = f"added lines {', '.join(map(str, line_numbers))}" if line_numbers else "added lines"
+        rendered.append(
+            f"--- a/{path}\n+++ b/{path}\n@@ {location} @@\n"
+            + (added_lines or "(diff body was not retained in the audit event)")
+        )
+    return "\n\n".join(rendered) or "(LeoPrevent received no changed files)"
+
+
+def map_review_events(
+    output_dir: str,
+    dataset: dict[str, dict],
+    specs: list[tuple[str, str, str, str]],
+    cycles: list[int],
+    audit_groups: dict[tuple[str, str, str], list[dict]],
+) -> dict[tuple[str, str, int], dict]:
+    """Map audit events to cells by execution order, with timestamp fallback for gaps."""
+    cells_by_group: dict[tuple[str, str, str], list[tuple[float, tuple[str, str, int]]]] = defaultdict(list)
+    for agent, _label, _raw_batch, lp_batch in specs:
+        audit_agent = "claude" if agent == "claude_code" else "codex"
+        for instance_id, meta in dataset.items():
+            repo = str(meta.get("repo", "?"))
+            target_file = str(meta.get("vuln_file", "?"))
+            key = (repo, audit_agent, target_file)
+            for cycle in cycles:
+                path = os.path.join(
+                    output_dir, "generated_code", f"{agent}__{lp_batch}",
+                    f"{instance_id}_cycle{cycle}", target_file,
+                )
+                try:
+                    modified = os.path.getmtime(path)
+                except OSError:
+                    continue
+                cells_by_group[key].append((modified, (agent, instance_id, cycle)))
+
+    mapped: dict[tuple[str, str, int], dict] = {}
+    for key, cells in cells_by_group.items():
+        events = audit_groups.get(key, [])
+        if not events:
+            continue
+        ordered_cells = sorted(cells)
+        ordered_events = sorted(events, key=lambda event: event["_timestamp"])
+        if len(ordered_cells) == len(ordered_events):
+            for (_modified, cell), event in zip(ordered_cells, ordered_events):
+                mapped[cell] = event
+            continue
+
+        # A few broken cells never reached review. Match the remaining events uniquely
+        # within ten minutes of the generated file's final write time.
+        candidates = sorted(
+            (abs(modified - event["_timestamp"]), cell, str(event.get("review_id", "")), event)
+            for modified, cell in ordered_cells
+            for event in ordered_events
+        )
+        used_cells: set[tuple[str, str, int]] = set()
+        used_reviews: set[str] = set()
+        for delta, cell, review_id, event in candidates:
+            if delta > 600 or cell in used_cells or review_id in used_reviews:
+                continue
+            mapped[cell] = event
+            used_cells.add(cell)
+            used_reviews.add(review_id)
+    return mapped
 
 
 def pct(n: int, d: int, digits: int = 1) -> str:
@@ -301,27 +415,43 @@ def main() -> int:
         contexts = {row["instance_id"]: row for row in context_rows}
     except OSError:
         contexts = {}
-    repo_frequency = Counter(row.get("repo") for row in dataset_rows)
-    audit_first: dict[tuple[str, str], dict] = {}
+    audit_groups: dict[tuple[str, str, str], list[dict]] = defaultdict(list)
     audit_path = os.path.join(args.output_dir, "_server", "review-events.jsonl")
     try:
         with open(audit_path, encoding="utf-8") as fh:
+            audit_events = []
             for line in fh:
                 try:
-                    event = json.loads(line)
+                    audit_events.append(json.loads(line))
                 except json.JSONDecodeError:
-                    continue
-                if event.get("kind") != "review":
-                    continue
-                repo = str(event.get("repo", "")).removeprefix("github.com/")
-                key = (repo, str(event.get("agent", "")))
-                audit_first.setdefault(key, event)
+                    pass
+        outcomes = {
+            str(event.get("review_id", "")): event
+            for event in audit_events if event.get("kind") == "outcome"
+        }
+        for event in audit_events:
+            if event.get("kind") != "review":
+                continue
+            repo = str(event.get("repo", "")).removeprefix("github.com/")
+            try:
+                event["_timestamp"] = datetime.fromisoformat(
+                    str(event.get("time", "")).replace("Z", "+00:00")
+                ).timestamp()
+            except ValueError:
+                continue
+            outcome = outcomes.get(str(event.get("review_id", "")))
+            if outcome and outcome.get("before"):
+                event["_review_files"] = outcome["before"]
+            for changed_file in event.get("files") or []:
+                key = (repo, str(event.get("agent", "")), str(changed_file.get("path", "")))
+                audit_groups[key].append(event)
     except OSError:
         pass
     specs = [
         ("claude_code", "Claude Sonnet 4.5", "claude_raw", "claude_lp"),
         ("codex", "Codex Terra", "codex_raw", "codex_lp"),
     ]
+    review_events = map_review_events(args.output_dir, dataset, specs, cycles, audit_groups)
 
     excluded_instances: set[str] = set()
     if args.exclude_consistently_broken:
@@ -396,11 +526,7 @@ def main() -> int:
                         lp_source = fh.read()
                 except OSError:
                     lp_source = ""
-                audit_agent = "claude" if agent == "claude_code" else "codex"
-                review = (
-                    audit_first.get((repo_name, audit_agent))
-                    if cycle_count == 1 and repo_frequency[repo_name] == 1 else None
-                )
+                review = review_events.get((agent, instance_id, cycle))
                 by_language[label][language][f"raw_{r}"] += 1
                 by_language[label][language][f"lp_{l}"] += 1
                 by_cwe[label][cwe][f"raw_{r}"] += 1
@@ -443,6 +569,9 @@ def main() -> int:
                         baseline, ground_truth, "vulnerable baseline", "ground-truth patch"
                     ),
                     "review": review,
+                    "review_diff": review_diff_text(
+                        review, repo_dir, {target_file: lp_source}
+                    ),
                 }
                 rows.append(item)
                 all_rows.append(item)
@@ -540,12 +669,12 @@ def main() -> int:
           <td>{pill(row['raw'])}</td><td>{pill(row['lp'])}</td><td>{outcome_pill}</td>
         </tr>
         <tr class="detail-row" id="detail-{key}" hidden><td colspan="7"><div class="drill">
-          <div class="drill-head"><div><div class="eyebrow">Cycle {row['cycle']} · {esc(row['vuln_source'])} · {esc(row['severity'])}</div><h3>{esc(row['target_file'])}</h3></div><div class="drill-meta"><span>base <code>{esc(str(row['base_commit'])[:8])}</code></span><span>reference <code>{esc(str(row['patch_commit'])[:8])}</code></span></div></div>
+          <div class="drill-head"><div><div class="eyebrow">Cycle {row['cycle']} · {esc(row['vuln_source'])} · {esc(row['severity'])}</div><h3>{esc(row['target_file'])}</h3></div><div class="drill-meta"><span>base <code>{esc(short_revision(row['base_commit']))}</code></span><span>reference <code>{esc(short_revision(row['patch_commit']))}</code></span></div></div>
           <div class="cve-explainer"><div class="tablecap">What this vulnerability means</div><p>{esc(row['cve_explanation'])}</p></div>
           <details class="prompt"><summary>Prompt that led to these diffs</summary><p>Initial benchmark prompt shared by both arms. The LeoPrevent arm may receive additional review feedback after its first edit.</p><div class="prompt-label">Original · Chinese</div><pre>{esc(row['task_prompt'])}</pre><details class="translation"><summary>View English translation</summary><pre>{esc(row['task_prompt_english'])}</pre></details></details>
           <div class="arm-grid">
             <article class="arm-detail"><div class="arm-title"><h3>Raw</h3>{pill(row['raw'])}<span class="runtime">{raw_time}</span></div><div class="checks">{check_list(row['raw_scan'])}</div><div class="diff"><pre>{diff_html(row['raw_diff'])}</pre></div></article>
-            <article class="arm-detail"><div class="arm-title"><h3>With LeoPrevent</h3>{pill(row['lp'])}<span class="runtime">{lp_time}</span></div><div class="checks">{check_list(row['lp_scan'])}</div><div class="diff"><pre>{diff_html(row['lp_diff'])}</pre></div><div class="review"><div class="tablecap">LeoPrevent review</div>{findings_html(row['review'])}</div></article>
+            <article class="arm-detail"><div class="arm-title"><h3>With LeoPrevent</h3>{pill(row['lp'])}<span class="runtime">{lp_time}</span></div><div class="checks">{check_list(row['lp_scan'])}</div><div class="tablecap">Final code vs vulnerable baseline</div><div class="diff"><pre>{diff_html(row['lp_diff'])}</pre></div><details class="review-input"><summary>Diff sent to LeoPrevent</summary><p>This is the agent's pre-intervention change reconstructed from the review audit event.</p><div class="diff"><pre>{diff_html(row['review_diff'])}</pre></div></details><div class="review"><div class="tablecap">LeoPrevent review</div>{findings_html(row['review'])}{review_response_html(row['review'])}</div></article>
           </div>
           <details class="truth"><summary>Compare with {ground_truth_link}</summary><div class="diff"><pre>{diff_html(row['truth_diff'])}</pre></div></details>
         </div></td></tr>""")
@@ -595,7 +724,7 @@ def main() -> int:
 @media(prefers-color-scheme:dark){{:root:not([data-theme="light"]){{--canvas:#0d0d0e;--surface:#17171a;--surface-1:#121214;--hair:#2a2a2d;--faint:#1f1f22;--chip:#1f1f22;--text:#f4f5f5;--text-2:#b4b4b6;--text-3:#909093;--text-4:#6e6e72;--red:#ff6257;--red-tint:#2b1412;--green:#7fc596;--green-tint:#14201a}}}}
 :root[data-theme="dark"]{{--canvas:#0d0d0e;--surface:#17171a;--surface-1:#121214;--hair:#2a2a2d;--faint:#1f1f22;--chip:#1f1f22;--text:#f4f5f5;--text-2:#b4b4b6;--text-3:#909093;--text-4:#6e6e72;--red:#ff6257;--red-tint:#2b1412;--green:#7fc596;--green-tint:#14201a}}
 *{{box-sizing:border-box}}html{{scroll-behavior:smooth}}body{{margin:0;background:var(--canvas);color:var(--text);font:15px/1.6 Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased}}.wrap{{max-width:var(--container);margin:auto;padding:0 clamp(20px,4vw,64px) 110px}}.prose{{max-width:70ch}}.mast{{height:63px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--hair);margin-bottom:56px;gap:16px}}.mark,.mono{{font-family:"Geist Mono",monospace}}.mark{{font-size:13px;letter-spacing:.16em;font-weight:500}}.mast nav{{display:flex;align-items:center;gap:20px;font:11px "Geist Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)}}.mast i{{font-style:normal;color:var(--text-4);margin-right:5px}}button{{font:inherit;color:var(--text-2);background:transparent;border:1px solid var(--hair);border-radius:999px;padding:4px 10px;cursor:pointer}}h1,h2,h3{{margin:0;font-weight:650;letter-spacing:-.025em;text-wrap:balance}}h1{{font-size:clamp(2.4rem,5vw,3.6rem);line-height:1.05}}h1 .quiet{{display:block;color:var(--text-4)}}h2{{font-size:1.8rem;line-height:1.15;margin-bottom:9px}}h3{{font-size:1.05rem}}p{{margin:0 0 14px}}.eyebrow{{font:12px "Geist Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-bottom:20px}}.eyebrow b{{color:var(--text-4);font-weight:400}}.lede{{font-size:1.1rem;color:var(--text-2);margin-top:22px}}section{{margin-top:clamp(72px,10vh,118px)}}.sechead{{margin-bottom:28px}}.metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));border-top:1px solid var(--hair);margin-top:42px}}.metric{{padding:22px 20px;border-bottom:1px solid var(--hair);border-right:1px solid var(--faint)}}.metric:last-child{{border-right:0}}.metric .n{{font-size:2.45rem;line-height:1;font-weight:650;letter-spacing:-.04em;font-variant-numeric:tabular-nums}}.metric .l{{display:block;margin-top:9px;font:12px "Geist Mono",monospace;color:var(--text-3);letter-spacing:.03em}}.metric.hot .n{{color:var(--red)}}.mwrap{{overflow:auto}}table.matrix{{width:100%;border-collapse:collapse;font-size:13px}}th{{font:10.5px "Geist Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--text-4);font-weight:400;text-align:left;padding:10px 14px 10px 0;border-bottom:1px solid var(--hair);white-space:nowrap}}td{{padding:11px 14px 11px 0;border-bottom:1px solid var(--faint);vertical-align:middle}}.num,.model{{font-family:"Geist Mono",monospace;font-variant-numeric:tabular-nums}}.model{{font-size:12px}}code{{font-family:"Geist Mono",monospace;font-size:.9em}}.note{{border:1px solid var(--hair);background:var(--surface);padding:17px 19px;color:var(--text-2);margin-top:22px}}.note b{{color:var(--text)}}.pill{{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:4px;font:10.5px "Geist Mono",monospace;letter-spacing:.03em;white-space:nowrap}}.dot{{width:6px;height:6px;border-radius:50%;background:currentColor}}.pill.vulnerable{{background:var(--red-tint);color:var(--red)}}.pill.safe{{background:var(--chip);color:var(--text)}}.pill.broken{{background:transparent;color:var(--text-4);border:1px dashed var(--text-4)}}.pill.prevented{{background:var(--green-tint);color:var(--green)}}.twocol{{display:grid;grid-template-columns:1fr 1fr;gap:42px}}.break{{border-top:1px solid var(--hair);padding-top:23px;margin-top:32px}}.break h3{{margin-bottom:17px}}.tablecap{{font:10.5px "Geist Mono",monospace;color:var(--text-4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}}.controls{{display:grid;grid-template-columns:1.3fr repeat(3,minmax(130px,.55fr));gap:10px;margin:20px 0}}input,select{{width:100%;background:var(--surface);color:var(--text);border:1px solid var(--hair);border-radius:5px;padding:9px 10px;font:12px "Geist Mono",monospace}}.fcount{{color:var(--text-3);font-size:13px}}.ledger .instance{{display:block;font:11.5px "Geist Mono",monospace;max-width:310px;overflow:hidden;text-overflow:ellipsis}}.ledger .repo,.type{{display:block;color:var(--text-4);font-size:11px;margin-top:2px}}.tag{{display:inline-block;background:var(--chip);color:var(--text-3);padding:2px 7px;border-radius:3px;font:10px "Geist Mono",monospace}}.bar{{height:8px;background:var(--chip);border-radius:9px;overflow:hidden;margin-top:6px;width:120px}}.bar i{{display:block;height:100%;background:var(--red)}}.limitations{{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--hair);background:var(--surface-1)}}.lim{{padding:20px;border-right:1px solid var(--hair)}}.lim:last-child{{border:0}}.lim b{{display:block;margin-bottom:6px}}.lim p{{font-size:13px;color:var(--text-3);margin:0}}footer{{margin-top:90px;padding-top:22px;border-top:1px solid var(--hair);font:11px/2 "Geist Mono",monospace;color:var(--text-4)}}a{{color:var(--text)}}@media(max-width:820px){{.twocol,.limitations{{grid-template-columns:1fr}}.lim{{border-right:0;border-bottom:1px solid var(--hair)}}.controls{{grid-template-columns:1fr 1fr}}.mast nav span{{display:none}}}}@media(max-width:520px){{.controls{{grid-template-columns:1fr}}}}
-.detail-toggle{{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;border-radius:3px;padding:3px;background:transparent;color:var(--text)}}.detail-toggle:hover{{background:var(--chip)}}.chev{{font-size:22px;color:var(--text-4);line-height:1;transition:transform .15s}}.detail-toggle[aria-expanded="true"] .chev{{transform:rotate(90deg)}}.detail-row>td{{padding:0;border-bottom:1px solid var(--hair)}}.drill{{padding:28px 24px 34px;background:var(--surface-1)}}.drill-head,.arm-title{{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}}.drill-head{{margin-bottom:18px}}.drill-head .eyebrow{{margin:0 0 5px}}.drill-meta{{display:flex;gap:14px;font:10.5px "Geist Mono",monospace;color:var(--text-4)}}.cve-explainer{{margin:0 0 16px;padding:14px 16px;border-left:3px solid var(--text);background:var(--surface)}}.cve-explainer p{{max-width:88ch;margin:3px 0 0;color:var(--text-2);font-size:13px;line-height:1.55}}.prompt{{margin:0 0 24px}}.prompt summary{{font:12px "Geist Mono",monospace;color:var(--text-2);cursor:pointer}}.prompt>p{{margin:8px 0;color:var(--text-4);font-size:12px}}.prompt-label{{margin:10px 0 5px;font:10px "Geist Mono",monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--text-4)}}.prompt pre{{max-height:360px;overflow:auto;margin:0;padding:14px 16px;border:1px solid var(--faint);background:var(--surface);white-space:pre-wrap;font:11px/1.55 "Geist Mono",monospace;color:var(--text-2)}}.translation{{margin-top:10px}}.translation>summary{{display:inline-block;padding:4px 10px;border:1px solid var(--hair);border-radius:999px}}.translation[open]>summary{{margin-bottom:8px}}.arm-grid{{display:grid;grid-template-columns:1fr 1fr;gap:20px}}.arm-detail{{min-width:0}}.arm-title{{justify-content:flex-start;margin-bottom:10px}}.arm-title h3{{margin-right:auto}}.runtime{{font:10.5px "Geist Mono",monospace;color:var(--text-4)}}.checks{{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}}.check{{font:10px "Geist Mono",monospace;padding:2px 7px;border-radius:3px;background:var(--chip);color:var(--text-3)}}.check.pass{{color:var(--green);background:var(--green-tint)}}.check.fail{{color:var(--red);background:var(--red-tint)}}.diff{{overflow:auto;max-height:480px;background:var(--surface);border:1px solid var(--faint)}}.diff pre{{margin:0;padding:10px 0;font:11px/1.58 "Geist Mono",monospace;min-width:max-content}}.diffline{{display:block;padding:0 12px;white-space:pre}}.diffline.add{{color:var(--green);background:var(--green-tint)}}.diffline.del{{color:var(--red);background:var(--red-tint)}}.diffline.hunk{{color:var(--text-4)}}.review{{margin-top:18px}}.finding{{padding:12px 0;border-top:1px solid var(--faint)}}.finding p{{font-size:12.5px;color:var(--text-2);margin:5px 0 0}}.finding .fix{{color:var(--text-3)}}.rule{{font:11px "Geist Mono",monospace;color:var(--red);margin-right:6px}}.location{{font:10.5px "Geist Mono",monospace;color:var(--text-4);margin-top:4px}}.muted{{color:var(--text-4);font-size:12.5px}}.truth{{margin-top:20px}}.truth summary{{font:12px "Geist Mono",monospace;color:var(--text-2);margin-bottom:10px}}@media(max-width:820px){{.arm-grid{{grid-template-columns:1fr}}}}@media(max-width:520px){{.drill{{padding:20px 12px}}}}
+.detail-toggle{{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:0;border-radius:3px;padding:3px;background:transparent;color:var(--text)}}.detail-toggle:hover{{background:var(--chip)}}.chev{{font-size:22px;color:var(--text-4);line-height:1;transition:transform .15s}}.detail-toggle[aria-expanded="true"] .chev{{transform:rotate(90deg)}}.detail-row>td{{padding:0;border-bottom:1px solid var(--hair)}}.drill{{padding:28px 24px 34px;background:var(--surface-1)}}.drill-head,.arm-title{{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}}.drill-head{{margin-bottom:18px}}.drill-head .eyebrow{{margin:0 0 5px}}.drill-meta{{display:flex;gap:14px;font:10.5px "Geist Mono",monospace;color:var(--text-4)}}.cve-explainer{{margin:0 0 16px;padding:14px 16px;border-left:3px solid var(--text);background:var(--surface)}}.cve-explainer p{{max-width:88ch;margin:3px 0 0;color:var(--text-2);font-size:13px;line-height:1.55}}.prompt{{margin:0 0 24px}}.prompt summary{{font:12px "Geist Mono",monospace;color:var(--text-2);cursor:pointer}}.prompt>p{{margin:8px 0;color:var(--text-4);font-size:12px}}.prompt-label{{margin:10px 0 5px;font:10px "Geist Mono",monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--text-4)}}.prompt pre{{max-height:360px;overflow:auto;margin:0;padding:14px 16px;border:1px solid var(--faint);background:var(--surface);white-space:pre-wrap;font:11px/1.55 "Geist Mono",monospace;color:var(--text-2)}}.translation{{margin-top:10px}}.translation>summary{{display:inline-block;padding:4px 10px;border:1px solid var(--hair);border-radius:999px}}.translation[open]>summary{{margin-bottom:8px}}.arm-grid{{display:grid;grid-template-columns:1fr 1fr;gap:20px}}.arm-detail{{min-width:0}}.arm-title{{justify-content:flex-start;margin-bottom:10px}}.arm-title h3{{margin-right:auto}}.runtime{{font:10.5px "Geist Mono",monospace;color:var(--text-4)}}.checks{{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}}.check{{font:10px "Geist Mono",monospace;padding:2px 7px;border-radius:3px;background:var(--chip);color:var(--text-3)}}.check.pass{{color:var(--green);background:var(--green-tint)}}.check.fail{{color:var(--red);background:var(--red-tint)}}.diff{{overflow:auto;max-height:480px;background:var(--surface);border:1px solid var(--faint)}}.diff pre{{margin:0;padding:10px 0;font:11px/1.58 "Geist Mono",monospace;min-width:max-content}}.diffline{{display:block;padding:0 12px;white-space:pre}}.diffline.add{{color:var(--green);background:var(--green-tint)}}.diffline.del{{color:var(--red);background:var(--red-tint)}}.diffline.hunk{{color:var(--text-4)}}.review-input{{margin-top:14px}}.review-input summary{{cursor:pointer;font:11px "Geist Mono",monospace;color:var(--text-2)}}.review-input>p{{margin:7px 0 9px;font-size:12px;color:var(--text-4)}}.review-input[open]>summary{{margin-bottom:6px}}.review{{margin-top:18px}}.review-response{{margin-top:14px}}.review-response>summary{{cursor:pointer;font:11px "Geist Mono",monospace;color:var(--text-2)}}.review-response[open]>summary{{margin-bottom:6px}}.resp{{max-height:420px;overflow:auto;margin:8px 0 0;padding:12px 14px;border:1px solid var(--faint);background:var(--surface);white-space:pre-wrap;font:11px/1.55 "Geist Mono",monospace;color:var(--text-2)}}.finding{{padding:12px 0;border-top:1px solid var(--faint)}}.finding p{{font-size:12.5px;color:var(--text-2);margin:5px 0 0}}.finding .fix{{color:var(--text-3)}}.rule{{font:11px "Geist Mono",monospace;color:var(--red);margin-right:6px}}.location{{font:10.5px "Geist Mono",monospace;color:var(--text-4);margin-top:4px}}.muted{{color:var(--text-4);font-size:12.5px}}.truth{{margin-top:20px}}.truth summary{{font:12px "Geist Mono",monospace;color:var(--text-2);margin-bottom:10px}}@media(max-width:820px){{.arm-grid{{grid-template-columns:1fr}}}}@media(max-width:520px){{.drill{{padding:20px 12px}}}}
 </style></head><body><div class="wrap">
 <header class="mast"><span class="mark">LEOTRACE</span><nav><span><i>01</i>LeoBench</span><span><i>02</i>A.S.E</span><span><i>03</i>{esc(cycle_label)}</span><button id="theme" aria-label="Toggle theme">theme</button></nav></header>
 <div class="eyebrow">&lt;&gt; <b>Benchmark result · {result_stage}</b></div>
@@ -634,7 +763,11 @@ if(location.hash.startsWith('#cell-')){{const key=location.hash.slice(6),row=row
         with open(args.source_csv, newline="", encoding="utf-8") as fh:
             source_rows = list(csv.DictReader(fh))
             fieldnames = list(source_rows[0]) if source_rows else []
-        filtered_rows = [row for row in source_rows if row.get("instance_id") in dataset]
+        filtered_rows = [
+            row for row in source_rows
+            if row.get("instance_id") in dataset
+            and int(row.get("cycle", 0)) in cycles
+        ]
         with open(args.filtered_csv, "w", newline="", encoding="utf-8") as fh:
             writer = csv.DictWriter(fh, fieldnames=fieldnames)
             writer.writeheader()
