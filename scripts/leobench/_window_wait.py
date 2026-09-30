@@ -19,7 +19,14 @@ import re
 import sys
 import time
 
-STOP_AT = float(os.environ.get("WINDOW_STOP_AT", "0.90"))
+# Separate floors per window: the operator rule is 5% of the five-hour REMAINING and 25% of the
+# weekly REMAINING, which is 0.95 and 0.75 utilisation. One shared threshold cannot express that,
+# and using 0.95 for both would let a run eat the weekly allowance down to 5%.
+_shared = os.environ.get("WINDOW_STOP_AT")
+STOP_AT = {
+    "five_hour": float(os.environ.get("WINDOW_STOP_AT_5H", _shared or "0.95")),
+    "seven_day": float(os.environ.get("WINDOW_STOP_AT_7D", _shared or "0.75")),
+}
 WINDOW = re.compile(
     r"'(five_hour|seven_day)': \{'utilization': ([0-9.]+), 'resetsAt': (\d+)\}"
 )
@@ -39,10 +46,10 @@ for path in glob.glob(f"{logdir}/claude_*.log"):
         continue
     for event in EVENT.findall(text):
         windows = [
-            (float(m.group(2)), int(m.group(3))) for m in WINDOW.finditer(event)
+            (m.group(1), float(m.group(2)), int(m.group(3))) for m in WINDOW.finditer(event)
         ]
-        for utilization, ts in windows:
-            if ts > now and utilization >= STOP_AT:
+        for name, utilization, ts in windows:
+            if ts > now and utilization >= STOP_AT.get(name, 0.95):
                 wait_until.append(ts)
         primary = PRIMARY.search(event)
         if primary:

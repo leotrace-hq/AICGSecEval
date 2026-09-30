@@ -39,11 +39,13 @@ except Exception: print(0); raise SystemExit
 print(sum(1 for v in d.values() if v.get('success')))" 2>/dev/null || echo 0
 }
 
-resets_at() {  # newest five_hour resetsAt across the claude logs; empty if unknown
-  python3 - <<'PY' 2>/dev/null
-import re,glob
+resets_at() {  # newest five_hour resetsAt across THIS run's claude logs; empty if unknown
+  # Reads $OUT, not a hardcoded path: pointed at a fresh output dir the old hardcoded glob
+  # returned a previous run's reset times and the scheduler slept against stale data.
+  LOGDIR="$OUT/_genlogs" python3 - <<'PY' 2>/dev/null
+import re,glob,os
 best=0
-for f in glob.glob('outputs/inscope/_genlogs/claude_*.log'):
+for f in glob.glob(os.path.join(os.environ.get('LOGDIR','outputs/inscope/_genlogs'), 'claude_*.log')):
     try: t=open(f,errors='replace').read()
     except OSError: continue
     for m in re.finditer(r"'five_hour': \{'utilization': [0-9.]+, 'resetsAt': (\d+)\}", t):
