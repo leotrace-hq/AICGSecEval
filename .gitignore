@@ -4,3 +4,10 @@ outputs/
 .venv/
 agent_gencode_error.log
 security_scan_error.log
+
+# generated reports and per-cell exports; published to the results repo, not here
+*_results.html
+*_cells.csv
+*_cells_filtered.csv
+inscope*.md
+run25*.md
