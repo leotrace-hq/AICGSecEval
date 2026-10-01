@@ -26,8 +26,26 @@ class DockerHelperImpl:
             raise RuntimeError(f"连接本地 Docker 服务失败：{e}")
 
         try:
+            # The dataset writes image_run_cmd as a SHELL line, e.g.
+            #   "/etc/init.d/apache2 start && tail -f /dev/null"
+            # docker-py shlex-splits a string command, so "&&" would arrive as a plain argv
+            # element: the init script starts Apache, exits 0, and the container dies, after
+            # which every exec fails and the status-check log comes back ZERO BYTES. Hand
+            # anything with shell syntax to a shell so it means what the dataset intends.
+            run_command = command
+            if isinstance(command, str) and command.strip() and any(
+                    tok in command for tok in ("&&", "||", "|", ";", ">", "<", "$(", "`")):
+                run_command = ["sh", "-c", command]
+
             self._docker_container = self._docker_client.containers.run(
-                image=image, command=command, stdout=True, stderr=True, remove=True, detach=True, privileged=self._privileged)
+                image=image, command=run_command, stdout=True, stderr=True, remove=True, detach=True,
+                privileged=self._privileged,
+                # Task images are published for linux/amd64. Some are multi-arch manifest LISTS
+                # that simply omit arm64; Docker refuses to start those on an arm64 host rather
+                # than emulating, while single-arch amd64 images run under emulation fine. Naming
+                # the platform makes both behave the same way, so the benchmark is runnable on
+                # Apple Silicon. On an amd64 host this is a no-op.
+                platform=os.environ.get("ASE_DOCKER_PLATFORM", "linux/amd64"))
             self._logger.info(
                 f"[{self._trace}] 启动镜像 {self._image} 成功，容器：{self._docker_container.name}（{self._docker_container.id}）")
         except Exception as e:
@@ -156,11 +174,31 @@ class DockerHelperImpl:
                     f"[{self._trace}] 打包本地目录 \"{host_path}\" 失败：{e}")
                 return False
 
+            # tarfile records the HOST's numeric uid/gid, and put_archive applies them verbatim,
+            # so the uploaded tree lands owned by a uid that does not exist in the container
+            # (501:20 from a macOS host). Anything the application needs to write under its own
+            # code directory then fails: OpenEMR cannot create its crypto key and serves a
+            # 470-byte warning page with HTTP 200, which the readiness probe reports as the
+            # thoroughly misleading "Attempt failed with status code 200". Capture the ownership
+            # the image shipped and put it back.
+            try:
+                owner = self.execute(
+                    command=f"stat -c '%u:%g' {container_path}", timeout=30).decode("utf-8").strip()
+            except Exception as e:
+                self._logger.warning(f"[{self._trace}] 读取 {container_path} 属主失败，跳过属主恢复：{e}")
+                owner = None
+
             try:
                 self._docker_container.put_archive(path=container_path, data=host_tar_data)
             except Exception as e:
                 self._logger.error(f"[{self._trace}] 复制文件到容器失败：{e}")
                 return False
+
+            if owner and ":" in owner and owner.replace(":", "").isdigit():
+                try:
+                    self.execute(command=f"chown -R {owner} {container_path}", timeout=600)
+                except Exception as e:
+                    self._logger.warning(f"[{self._trace}] 恢复 {container_path} 属主失败：{e}")
 
         return True
 

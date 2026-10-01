@@ -1,0 +1,59 @@
+[
+  {
+    "instance_id": "zju-cve-2023-34448",
+    "hits": [
+      {
+        "docid": "system/src/Grav/Common/Twig/Extension/GravExtension.php",
+        "startline": 882,
+        "endline": 916
+      },
+      {
+        "docid": "system/src/Grav/Common/Language/Language.php",
+        "startline": 482,
+        "endline": 528
+      },
+      {
+        "docid": "system/src/Grav/Common/Config/Config.php",
+        "startline": 18,
+        "endline": 86
+      },
+      {
+        "docid": "system/src/Grav/Common/Twig/Extension/GravExtension.php",
+        "startline": 73,
+        "endline": 90
+      },
+      {
+        "docid": "system/src/Grav/Common/Twig/Extension/GravExtension.php",
+        "startline": 27,
+        "endline": 50
+      }
+    ],
+    "function_summary": "This code segment is part of the `translate()` method in GravExtension.php. Lines 908-911 handle translation functionality in Twig templates. Specifically:\n\nLine 909: Calls `$this->grav['language']->translate($args)` to translate the arguments using Grav's language service.\n\nLines 911-915: If the system's language debug mode is enabled (`system.languages.debug` is true), wraps the translated text in a `<span>` element with CSS class \"translate-debug\" and a tooltip showing the original translation key (`$args[0]`). Otherwise, returns the plain translation.\n\nThe code retrieves translated text from the Language service and optionally wraps it in debug markup when debugging is enabled."
+  },
+  {
+    "instance_id": "zju-cve-2022-2732",
+    "hits": [
+      {
+        "docid": "interface/patient_file/summary/add_edit_amendments.php",
+        "startline": 1,
+        "endline": 30
+      },
+      {
+        "docid": "src/Common/Acl/AclMain.php",
+        "startline": 1,
+        "endline": 233
+      },
+      {
+        "docid": "interface/globals.php",
+        "startline": 292,
+        "endline": 298
+      },
+      {
+        "docid": "library/translation.inc.php",
+        "startline": 12,
+        "endline": 61
+      }
+    ],
+    "function_summary": "This code segment implements access control for the amendments feature by checking if the current user has permission to access the 'patients/amendment' section. If the user lacks permission, it renders an unauthorized error page using Twig template engine and terminates script execution. It also determines and stores boolean flags for edit and add access permissions to control subsequent operations within the amendments management interface."
+  }
+]
