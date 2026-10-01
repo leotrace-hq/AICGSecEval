@@ -455,6 +455,19 @@ def main() -> int:
         ("claude_code", "Claude Sonnet 4.5", "claude_raw", "claude_lp"),
         ("codex", "Codex Terra", "codex_raw", "codex_lp"),
     ]
+    # A run may cover only one agent (the 2026-09-30 inscope25 run is Claude-only). Drop any
+    # agent with no scanned cells instead of dying on its missing directory: len(specs) also
+    # feeds the expected-cell and broken-cell arithmetic below, so it has to reflect what ran.
+    specs = [
+        spec for spec in specs
+        if all(
+            os.path.isdir(os.path.join(
+                args.output_dir, "generated_code", f"{spec[0]}__{batch}", "scan_results"))
+            for batch in (spec[2], spec[3])
+        )
+    ]
+    if not specs:
+        raise SystemExit(f"no verified agent batches under {args.output_dir}")
     review_events = map_review_events(args.output_dir, dataset, specs, cycles, audit_groups)
 
     excluded_instances: set[str] = set()
@@ -698,6 +711,20 @@ def main() -> int:
         "This is a complete cycle, but one sample per task is not enough to separate "
         "the intervention from agent non-determinism."
     )
+    # Headline and per-agent p-values are derived, not hardcoded: this template previously
+    # asserted "not statistically conclusive" and indexed agents[1], which was true of the
+    # two-agent 2026-09-21 run and wrong for any run that moves the needle or runs one agent.
+    _ps = [a["pvalue"] for a in agents]
+    if all(p < 0.05 for p in _ps):
+        significance_headline = "Statistically significant."
+    elif any(p < 0.05 for p in _ps):
+        significance_headline = "Significant for some agents, not all."
+    else:
+        significance_headline = "Directionally suggestive, not statistically conclusive."
+    per_agent_p = "; ".join(
+        "%s exact paired sign-test p-value is %s" % (
+            a["label"], ("%.3g" % a["pvalue"]) if a["pvalue"] < 0.001 else ("%.3f" % a["pvalue"]))
+        for a in agents) + "."
     significance_note = (
         "The three-cycle run is complete. These cell-level paired tests show the observed "
         "direction and uncertainty; repeated cells from the same task are not independent tasks."
@@ -738,7 +765,7 @@ def main() -> int:
 
 <section><div class="sechead"><div class="eyebrow"><b>01</b> Did it prevent exploits?</div><h2>{reduction_total:.1f}% fewer vulnerable cells</h2><p class="prose" style="color:var(--text-3)">Vulnerability counts pool all three cycles. Improved/regressed and the sign test compare each task’s fraction of exploitable cycles under raw versus LeoPrevent. A verdict exists only when the generated project built and passed its functional test.</p></div>
 <div class="mwrap"><table class="matrix"><tr><th>agent</th><th>raw vulnerable</th><th>with LeoPrevent</th><th>relative reduction</th><th>tasks improved</th><th>tasks regressed</th><th>sign-test p</th></tr>{''.join(model_rows)}</table></div>
-<div class="note"><b>Directionally positive, not statistically conclusive.</b> Claude’s exact paired sign-test p-value is {agents[0]['pvalue']:.3f}; Codex’s is {agents[1]['pvalue']:.3f}. {significance_note}</div></section>
+<div class="note"><b>{significance_headline}</b> {per_agent_p} {significance_note}</div></section>
 
 <section><div class="sechead"><div class="eyebrow"><b>02</b> Where did it move?</div><h2>Results by language and weakness class</h2><p class="prose" style="color:var(--text-3)">Rates use verdict-bearing cells as the denominator. Broken cells are never credited as safe.</p></div>{''.join(breakdowns)}</section>
 

@@ -124,12 +124,45 @@ def summarise(tag: str, raw: dict, lp: dict, reviewed: set) -> dict:
         "raw_vuln": sum(1 for v in jr if v == VULN), "raw_judged": len(jr),
         "lp_vuln": sum(1 for v in jl if v == VULN), "lp_judged": len(jl),
         "prevented": len(tr["PREVENTED"]), "regressed": len(tr["REGRESSED"]),
-        "reviewed": len(reviewed),
+        "reviewed": len(reviewed), "task": task_level(raw, lp, reviewed),
     }
 
 
 def rate(n: int, d: int) -> float:
     return 100.0 * n / d if d else float("nan")
+
+
+def sign_test(a: int, b: int) -> float:
+    """Two-sided exact binomial on discordant pairs."""
+    from math import comb
+    n = a + b
+    if n == 0:
+        return 1.0
+    k = min(a, b)
+    return min(sum(comb(n, i) for i in range(k + 1)) / 2 ** n * 2, 1.0)
+
+
+def task_level(raw: dict, lp: dict, reviewed: set) -> tuple[int, int, float]:
+    """Sign test over TASKS, not cells.
+
+    Cycles of the same task are repeated measurements of one task, not independent
+    observations. Testing per cell treats 3 cycles as 3 samples and inflates significance
+    (pseudo-replication), so the task-level test is the one to quote. A task counts as
+    improved when it has strictly more exploitable cycles under raw than under leoprevent,
+    and at least one of its differing cycles was actually reviewed.
+    """
+    by_task: dict[str, list] = defaultdict(lambda: [0, 0, False])
+    for cell in set(raw) & set(lp):
+        a, b = raw[cell], lp[cell]
+        if a == BROKEN or b == BROKEN:
+            continue
+        by_task[cell[0]][0] += a == VULN
+        by_task[cell[0]][1] += b == VULN
+        if a != b and cell in reviewed:
+            by_task[cell[0]][2] = True
+    better = sum(1 for v in by_task.values() if v[0] > v[1] and v[2])
+    worse = sum(1 for v in by_task.values() if v[1] > v[0] and v[2])
+    return better, worse, sign_test(better, worse)
 
 
 def main() -> int:
@@ -181,6 +214,11 @@ def main() -> int:
     P("%-22s %12d %12d" % ("REGRESSED", old["regressed"], new["regressed"]))
     P("%-22s %12d %12d" % ("net (prev - reg)", old["prevented"] - old["regressed"],
                            new["prevented"] - new["regressed"]))
+    P("%-22s %12s %12s" % ("cell-level p", "%.3g" % sign_test(old["prevented"], old["regressed"]),
+                           "%.3g" % sign_test(new["prevented"], new["regressed"])))
+    ot, nt = old["task"], new["task"]
+    P("%-22s %12s %12s" % ("TASKS better/worse", "%d / %d" % (ot[0], ot[1]), "%d / %d" % (nt[0], nt[1])))
+    P("%-22s %12s %12s" % ("TASK-level p  <-- quote", "%.3g" % ot[2], "%.3g" % nt[2]))
     for k in ("vuln in both", "safe in both", "differed, no review", "unjudged"):
         P("%-22s %12d %12d" % (k, len(old["tr"][k]), len(new["tr"][k])))
 
