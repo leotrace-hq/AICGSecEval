@@ -174,19 +174,43 @@ class DockerHelperImpl:
                     f"[{self._trace}] 打包本地目录 \"{host_path}\" 失败：{e}")
                 return False
 
-            # tarfile records the HOST's numeric uid/gid, and put_archive applies them verbatim,
-            # so the uploaded tree lands owned by a uid that does not exist in the container
-            # (501:20 from a macOS host). Anything the application needs to write under its own
-            # code directory then fails: OpenEMR cannot create its crypto key and serves a
-            # 470-byte warning page with HTTP 200, which the readiness probe reports as the
-            # thoroughly misleading "Attempt failed with status code 200". Capture the ownership
-            # the image shipped and put it back.
+            # tarfile records the HOST's numeric uid/gid and mode, and put_archive applies them
+            # verbatim, so the uploaded tree lands owned by a uid that does not exist in the
+            # container (501:20 from a macOS host) with directory modes overwritten too. Anything
+            # the application needs to write under its own code directory then fails: OpenEMR
+            # cannot create its crypto key and serves a 470-byte warning page with HTTP 200, which
+            # the readiness probe reports as the misleading "Attempt failed with status code 200".
+            #
+            # Restore DIRECTORY ownership and mode, PER PATH, from a snapshot taken before the
+            # upload. Not `chown -R` to the top directory's owner: these trees are NOT uniformly
+            # owned, and flattening them breaks apps just as thoroughly. snipe-it is the
+            # counter-example that proves it: /var/www/html is root:root 755, but bootstrap/cache
+            # is abc:users 775 and storage is 777. A recursive chown to root takes Laravel's
+            # compiled-view cache away from the web user and the app never comes up (measured:
+            # 6 instances, 36 cells, all BROKEN on native amd64 where they had verified fine).
+            #
+            # Directories only: a directory's ownership and mode are what govern CREATING a file
+            # in it, which is what both failures were, and it keeps the snapshot to hundreds of
+            # entries rather than tens of thousands.
+            #
+            # Parsed and reissued from Python rather than as one shell pipeline: exec_create
+            # shlex-splits a string command, so a nested find|awk|xargs quoting dance is mangled
+            # silently and the restore becomes a no-op that still reports success.
+            before = {}
             try:
-                owner = self.execute(
-                    command=f"stat -c '%u:%g' {container_path}", timeout=30).decode("utf-8").strip()
+                # find -exec stat, not find -printf: busybox find (Alpine, and so every
+                # LinuxServer-style image here) has no -printf and merely prints its usage,
+                # which parses to an empty snapshot and a restore that silently does nothing.
+                out = self.execute(
+                    command=["find", container_path, "-type", "d",
+                             "-exec", "stat", "-c", "%U:%G %a %n", "{}", "+"],
+                    timeout=180).decode("utf-8", "replace")
+                for line in out.splitlines():
+                    parts = line.split(" ", 2)
+                    if len(parts) == 3 and ":" in parts[0]:
+                        before[parts[2]] = (parts[0], parts[1])
             except Exception as e:
-                self._logger.warning(f"[{self._trace}] 读取 {container_path} 属主失败，跳过属主恢复：{e}")
-                owner = None
+                self._logger.warning(f"[{self._trace}] 记录 {container_path} 目录属主失败，跳过恢复：{e}")
 
             try:
                 self._docker_container.put_archive(path=container_path, data=host_tar_data)
@@ -194,11 +218,19 @@ class DockerHelperImpl:
                 self._logger.error(f"[{self._trace}] 复制文件到容器失败：{e}")
                 return False
 
-            if owner and ":" in owner and owner.replace(":", "").isdigit():
-                try:
-                    self.execute(command=f"chown -R {owner} {container_path}", timeout=600)
-                except Exception as e:
-                    self._logger.warning(f"[{self._trace}] 恢复 {container_path} 属主失败：{e}")
+            if before:
+                groups = {}
+                for path, (owner, mode) in before.items():
+                    groups.setdefault((owner, mode), []).append(path)
+                for (owner, mode), paths in groups.items():
+                    for k in range(0, len(paths), 400):   # keep argv well inside its limit
+                        chunk = paths[k:k + 400]
+                        for cmd in (["chown", "-h", owner, *chunk], ["chmod", mode, *chunk]):
+                            try:
+                                self.execute(command=cmd, timeout=180)
+                            except Exception as e:
+                                self._logger.warning(
+                                    f"[{self._trace}] 恢复目录属主/权限失败（{owner} {mode}）：{e}")
 
         return True
 
