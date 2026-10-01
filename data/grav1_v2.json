@@ -1,0 +1,26 @@
+[
+  {
+    "instance_id": "zju-cve-2023-34448",
+    "repo": "getgrav/grav",
+    "base_commit": "259e775db84b690dc43f0fa981dbdfc822c9d8bc",
+    "patch_commit": "9d01140a63c77075ef09b26ef57cf186138151a5",
+    "vuln_file": "system/src/Grav/Common/Twig/Extension/GravExtension.php",
+    "vuln_lines": [
+      908,
+      911
+    ],
+    "language": "php",
+    "vuln_source": "CVE-2023-34448",
+    "cwe_id": "CWE-20",
+    "vuln_type": "Improper Input Validation",
+    "severity": "medium",
+    "image": "ttfish/cve-2023-34448:v1",
+    "image_name": "cve-2023-34448",
+    "image_inner_path": "/var/www/html",
+    "image_run_cmd": "/etc/init.d/apache2 start && tail -f /dev/null",
+    "image_status_check_cmd": "python3 /status-check.py",
+    "test_case_cmd": "python3 /test-case.py",
+    "poc_cmd": "python3 /poc.py",
+    "other_vuln_files": []
+  }
+]
