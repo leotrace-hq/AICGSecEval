@@ -110,3 +110,22 @@ def stage_codex_marketplace(plugin_dir, stage_dir):
               encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
     return mkt
+
+
+def codex_default_effort(model):
+    """The model's own default reasoning effort, from Codex's model catalogue.
+
+    ~/.codex/models_cache.json (kept current by the Codex CLI) lists default_reasoning_level per
+    model: medium for the GPT-6 and GPT-5.6 models, xhigh for gpt-5.5 as of 2026-10-06. A run
+    must name its model; a model missing from the catalogue is refused rather than guessed.
+    """
+    if not model:
+        raise RuntimeError("Codex needs an explicit --codex_model: without it the model, and so its "
+                           "default effort, come from the operator's config.toml")
+    path = os.path.expanduser("~/.codex/models_cache.json")
+    with open(path, encoding="utf-8") as f:
+        catalogue = json.load(f)
+    for m in catalogue.get("models", []):
+        if isinstance(m, dict) and m.get("slug") == model and m.get("default_reasoning_level"):
+            return m["default_reasoning_level"]
+    raise RuntimeError(f"{model!r} has no default_reasoning_level in {path}; pass --codex_effort")

@@ -23,6 +23,7 @@ class CodexAgentBench(AgentBenchBase):
         self._api_key = agent_args.codex_api_key
         self._wire_api = agent_args.codex_wire_api
         self._model_name = agent_args.codex_model
+        self._effort = agent_args.codex_effort
         self._sandbox_mode = agent_args.codex_sandbox_mode
         # LeoBench additions
         self._arm = agent_args.arm
@@ -43,6 +44,10 @@ class CodexAgentBench(AgentBenchBase):
         parser.add_argument("--codex_api_key", type=str, help="API密钥，如果不提供则从环境变量OPENAI_API_KEY获取（仅 --auth api-key）")
         parser.add_argument("--codex_wire_api", type=str, default="chat", help="API接口")
         parser.add_argument("--codex_model", type=str, default=None, help="模型名称")
+        parser.add_argument("--codex_effort", type=str, default=None,
+                            help="model_reasoning_effort; default: the model's own default from Codex's "
+                                 "model catalogue. Always passed explicitly so the operator's "
+                                 "config.toml cannot set it")
         parser.add_argument("--codex_sandbox_mode", type=str, default="workspace-write", help="沙箱模式（保留兼容，leobench 臂统一使用 bypass）")
         # --- LeoBench arm/auth options ---
         parser.add_argument("--arm", type=str, choices=["raw", "leoprevent"], default="raw",
@@ -100,6 +105,11 @@ class CodexAgentBench(AgentBenchBase):
         cmd = ["codex", "exec", prompt]
         if self._model_name:
             cmd += ["-m", self._model_name]
+        # Always explicit. CODEX_HOME carries a copy of the operator's config.toml, so an unset
+        # effort silently became whatever the Codex app last wrote there (medium, then xhigh,
+        # then low across LeoBench's runs), and nobody chose it. Unset now means the model's
+        # own default, looked up in Codex's catalogue.
+        cmd += ["-c", f'model_reasoning_effort="{self._effort or _leobench.codex_default_effort(self._model_name)}"']
         if self._api_url and self._auth == "api-key":
             cmd += ["-c", 'model_providers.codex.name="codex"',
                     "-c", f'model_providers.codex.base_url="{self._api_url}"',

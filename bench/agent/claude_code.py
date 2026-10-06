@@ -112,6 +112,10 @@ class ClaudeCodeAgentBench(AgentBenchBase):
         """Build the environment the SDK-spawned CLI runs under: subscription auth (billed
         overrides stripped), plus the plugin's server config on the leoprevent arm."""
         env = dict(os.environ)
+        # Effort is the model's own default unless a run chooses one: an effort override in the
+        # launching shell must not reach the agent unnoticed (setting_sources=[] already keeps
+        # the operator's settings.json, and its effortLevel, out).
+        env.pop("CLAUDE_CODE_EFFORT_LEVEL", None)
         secrets = _load_env_file(self._env_file)
 
         if self._auth == "subscription":
