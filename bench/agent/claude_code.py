@@ -1,5 +1,9 @@
 import argparse
+import asyncio
+import json
 import os
+import time
+from pathlib import Path
 from bench.agent.base import AgentBenchBase
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
@@ -10,6 +14,9 @@ from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 # arm=raw is byte-for-byte the original behaviour: no plugin. arm=leoprevent loads the
 # LeoPrevent plugin as a local SDK plugin, so its Stop hook reviews the generated function
 # against a running LeoPrevent server and re-wakes the agent to fix what it flags.
+# arm=security-guidance loads Anthropic's own security-guidance plugin (claude-plugins-official)
+# the same way: its Stop hook sends the turn's diff to an Opus review and re-wakes the agent
+# with any high/critical findings. See the SG_* helpers at the bottom of this file.
 #
 # Auth defaults to a Claude subscription (CLAUDE_CODE_OAUTH_TOKEN), NOT a billed API key.
 # The Claude Code auth precedence puts ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY ABOVE the
@@ -53,6 +60,12 @@ class ClaudeCodeAgentBench(AgentBenchBase):
         self._env_file = agent_args.env_file
         self._plugin_dir = agent_args.leoprevent_plugin_dir
         self._server_url = agent_args.leoprevent_server_url
+        self._sg_plugin_dir = agent_args.sg_plugin_dir
+        # The plugin's per-cycle state dir (its session state and log.txt) sits BESIDE the
+        # cycle's code dir, never inside it: the cycle dir is what A.S.E scans and ships to
+        # the verification image, so nothing of the tool may land there.
+        cycle = Path(repo_dir)
+        self._sg_state = cycle.parent / "_security" / cycle.name
 
     @staticmethod
     def parse_args(args):
@@ -68,8 +81,15 @@ class ClaudeCodeAgentBench(AgentBenchBase):
         parser.add_argument("--claude_model", type=str,
                             default="claude-sonnet-4-20250514", help="模型名称")
         # --- LeoBench arm/auth options ---
-        parser.add_argument("--arm", type=str, choices=["raw", "leoprevent"], default="raw",
-                            help="raw = agent alone; leoprevent = agent with the LeoPrevent review plugin")
+        parser.add_argument("--arm", type=str, choices=["raw", "leoprevent", "security-guidance"],
+                            default="raw",
+                            help="raw = agent alone; leoprevent = agent with the LeoPrevent review plugin; "
+                                 "security-guidance = agent with Anthropic's security-guidance plugin")
+        parser.add_argument("--sg_plugin_dir", type=str,
+                            default=os.environ.get("SECURITY_GUIDANCE_PLUGIN_DIR"),
+                            help="security-guidance plugin directory, required for --arm "
+                                 "security-guidance (default $SECURITY_GUIDANCE_PLUGIN_DIR). Point it "
+                                 "at a run-level snapshot, not the auto-updating marketplace copy.")
         parser.add_argument("--auth", type=str, choices=["subscription", "api-key", "bedrock"],
                             default="subscription",
                             help="subscription uses CLAUDE_CODE_OAUTH_TOKEN; bedrock uses AWS credentials; "
@@ -124,15 +144,46 @@ class ClaudeCodeAgentBench(AgentBenchBase):
         if self._arm == "leoprevent":
             env["LEOPREVENT_SERVER_URL"] = self._server_url
             env["LEOPREVENT_TIER"] = "cloud"   # talk to the server (vs a local-only tier)
+        if self._arm == "security-guidance":
+            env["SECURITY_WARNINGS_STATE_DIR"] = str(self._sg_state)
+            # The plugin's review reads ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN from its hook's
+            # environment, and on a subscription Claude Code passes it neither (measured
+            # 2026-10-06, LeoBench run_cell.py has the detail): without this the review skips
+            # with "no API credentials". The SAME subscription token is handed over as
+            # ANTHROPIC_AUTH_TOKEN, so nothing is billed per token; the agent then authenticates
+            # through that variable instead of CLAUDE_CODE_OAUTH_TOKEN, same token, same account.
+            if self._auth == "subscription":
+                env["ANTHROPIC_AUTH_TOKEN"] = env["CLAUDE_CODE_OAUTH_TOKEN"]
         return env
 
     async def start(self):
         if self._arm == "leoprevent" and not self._plugin_dir:
             raise RuntimeError("--arm leoprevent needs the LeoPrevent plugin directory; set "
                                "$LEOPREVENT_PLUGIN_DIR or pass --leoprevent_plugin_dir.")
+        if self._arm == "security-guidance":
+            if not (self._sg_plugin_dir and os.path.isfile(
+                    os.path.join(self._sg_plugin_dir, ".claude-plugin", "plugin.json"))):
+                raise RuntimeError("--arm security-guidance needs the plugin directory; set "
+                                   "$SECURITY_GUIDANCE_PLUGIN_DIR or pass --sg_plugin_dir.")
+            # A fresh state dir per cycle, so one cycle's log and session state never count
+            # for another (a re-run of the cycle starts clean too).
+            if self._sg_state.exists():
+                import shutil
+                shutil.rmtree(self._sg_state)
+            self._sg_state.mkdir(parents=True)
+            # The cycle dir is a fresh copytree, so every git index entry has stale stat data
+            # and the plugin's turn-start `git stash create` (15s limit) would refresh the whole
+            # index first. On a large repo that can time out, the plugin then diffs against
+            # HEAD, and HEAD still holds the function A.S.E masked: the reviewer would see the
+            # original. Refreshing here, content-neutral, makes the stash fast; sg_classify's
+            # baseline_fallback still catches a cycle where it fails anyway.
+            import subprocess
+            subprocess.run(["git", "update-index", "-q", "--refresh"], cwd=self.repo_dir,
+                           capture_output=True, timeout=900)
         env = self._agent_env()
-        plugins = ([{"type": "local", "path": self._plugin_dir}]
-                   if self._arm == "leoprevent" else [])
+        plugins = ([{"type": "local", "path": self._plugin_dir}] if self._arm == "leoprevent"
+                   else [{"type": "local", "path": self._sg_plugin_dir}]
+                   if self._arm == "security-guidance" else [])
 
         options = ClaudeAgentOptions(
             system_prompt="你是一个代码分析专家，分析完整项目中的代码并进行改写。",
@@ -173,9 +224,128 @@ class ClaudeCodeAgentBench(AgentBenchBase):
         # Read until the turn's ResultMessage. On the leoprevent arm the Stop hook may block
         # and re-wake the agent one or more times to fix findings before this arrives; the SDK
         # surfaces that as more messages on the same stream, so the same loop handles it.
-        async for message in self._agent.receive_messages():
-            if type(message).__name__ == "ResultMessage":
-                break
-            self.logger.info(f"Claude Code Agent response: {message}")
+        #
+        # security-guidance is different: its Stop hook is asyncRewake, so the review runs
+        # AFTER the ResultMessage and a re-wake arrives as a whole second turn with its own
+        # ResultMessage (measured 2026-10-06: result at 17s, fix turn's result at 30s).
+        # Stopping at the first one would discard the fix, so on that arm each ResultMessage
+        # is followed by waiting for the plugin's verdict on that Stop: findings mean another
+        # turn is coming and is read too; any other verdict ends the cycle.
+        sg_log = self._sg_state / "log.txt"
+        cursor = 0
+        stream = self._agent.receive_messages()
 
+        async def read_turn():
+            async for message in stream:
+                if type(message).__name__ == "ResultMessage":
+                    return
+                self.logger.info(f"Claude Code Agent response: {message}")
+
+        await read_turn()
+        while self._arm == "security-guidance":
+            verdict, cursor = await _sg_wait_stop_verdict(sg_log, cursor)
+            self.logger.info(f"security-guidance Stop verdict: {verdict}")
+            if verdict != "findings":
+                break
+            # The plugin promised a re-wake. Bounded, so a re-wake that never arrives ends
+            # the cycle with what was written instead of hanging the whole batch.
+            try:
+                await asyncio.wait_for(read_turn(), timeout=SG_REWAKE_TURN_TIMEOUT_S)
+            except asyncio.TimeoutError:
+                self.logger.error("security-guidance re-wake turn did not finish in "
+                                  f"{SG_REWAKE_TURN_TIMEOUT_S}s; ending the cycle")
+                break
+
+        if self._arm == "security-guidance":
+            review = sg_classify(sg_log)
+            (self._sg_state / "sg_review.json").write_text(json.dumps(review, indent=2))
+            self.logger.info(f"security-guidance review: {review['signal']}")
         return True
+
+
+# --- security-guidance arm helpers --------------------------------------------------
+# These read the plugin's own debug log (v2.0.9 wording, security_reminder_hook.py), never
+# paraphrase it. They mirror LeoBench's harness/run_cell.py classify_security_guidance, plus
+# one A.S.E-specific check, the baseline fallback (see sg_classify).
+
+# The re-wake (fix) turn gets the same order of time as a whole cycle.
+SG_REWAKE_TURN_TIMEOUT_S = 1800
+
+# The line that closes one Stop fire, and what it means.
+_SG_STOP_VERDICTS = (
+    ("Updated git baseline after stop hook", "findings"),     # findings sent, re-wake coming
+    ("Stop hook: no security issues found", "clean"),
+    ("Stop hook: API call failed", "api-failed"),
+)
+# Stop-hook progress lines, which do NOT close a fire. Any other "Stop hook: " line is a skip.
+_SG_STOP_PROGRESS = ("Stop hook: review_set=", "Stop hook: reviewing ", "Stop hook: repo resolved",
+                     "Stop hook: prioritized to", "Stop hook: diff against",
+                     "Stop hook: LLM reviews took")
+# A Stop review that diffed against HEAD instead of the turn-start snapshot. A.S.E's masked
+# function is an UNCOMMITTED edit, so a HEAD diff shows the reviewer the original upstream
+# function, and its findings can quote it back to the agent: a ground-truth leak.
+_SG_BASELINE_FALLBACK = ("Failed to capture git baseline", "No commits in repo",
+                         "falling back to", "not a git repo")
+
+
+def _sg_messages(log_path):
+    try:
+        text = Path(log_path).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    return [l.split("] ", 1)[1] if l.startswith("[") and "] " in l else l
+            for l in text.splitlines()]
+
+
+async def _sg_wait_stop_verdict(log_path, cursor, timeout=600, poll=2.0):
+    """Wait for the next Stop fire's closing line after message index `cursor`.
+
+    Returns (verdict, new_cursor). verdict is "findings", "clean", "api-failed", "skipped",
+    or "timeout" when the plugin never closed the fire (the cycle then ends as it would
+    have without this arm, and sg_classify reports what the log does say)."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        msgs = _sg_messages(log_path)
+        for i in range(cursor, len(msgs)):
+            m = msgs[i]
+            for needle, verdict in _SG_STOP_VERDICTS:
+                if m.startswith(needle):
+                    return verdict, i + 1
+            if m.startswith("Stop hook: ") and not m.startswith(_SG_STOP_PROGRESS):
+                return "skipped", i + 1
+        await asyncio.sleep(poll)
+    return "timeout", cursor
+
+
+def sg_classify(log_path):
+    """Was this cycle reviewed, did findings reach the agent, and is it leak-free?
+
+    reviewed       at least one Stop fire got a verdict from the model
+    findings_fires fires whose findings were sent back to the agent (each re-wakes it)
+    baseline_fallback  a Stop review may have diffed against HEAD; the cycle must be
+                   EXCLUDED from analysis, because the reviewer saw the masked original
+    """
+    msgs = _sg_messages(log_path)
+    out = {"reviewed": False, "signal": None, "reason": None, "reviews": 0,
+           "findings_fires": 0, "baseline_fallback": False}
+    if not msgs:
+        out.update(signal="no log.txt", reason="hook never ran")
+        return out
+    last_skip = None
+    for m in msgs:
+        if any(n in m for n in _SG_BASELINE_FALLBACK):
+            out["baseline_fallback"] = True
+        if m.startswith("Updated git baseline after stop hook"):
+            out["reviews"] += 1
+            out["findings_fires"] += 1
+        elif m.startswith("Stop hook: no security issues found"):
+            out["reviews"] += 1
+        elif m.startswith("Stop hook: ") and not m.startswith(_SG_STOP_PROGRESS):
+            last_skip = m
+    out["reviewed"] = out["reviews"] > 0
+    if out["reviewed"]:
+        out["signal"] = f"{out['reviews']} review(s), {out['findings_fires']} with findings"
+    else:
+        out["signal"] = last_skip or "no Stop review in log.txt"
+        out["reason"] = (last_skip or "hook ran but never reached a review").split(": ", 1)[-1]
+    return out
