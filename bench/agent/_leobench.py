@@ -30,57 +30,25 @@ def load_env_file(path):
     return out
 
 
-_LEOPREVENT_STRIP_SECTIONS = ("marketplaces", "plugins", "hooks")
-
-
-def strip_operator_leoprevent(config_text):
-    """Drop the operator's own leoprevent registration from a copied Codex config.toml.
-
-    The leoprevent arm installs the plugin itself; if the operator also has it installed in
-    ~/.codex, copying config.toml verbatim registers it twice and the Stop hook fires twice
-    (two reviews, findings double-counted). Walk the file table-block by table-block and drop a
-    block that BOTH sits in a marketplaces/plugins/hooks section AND names leoprevent. Every
-    other table and the preamble are kept verbatim.
-    """
-    blocks, cur = [], []
-    for line in config_text.splitlines(keepends=True):
-        if line.lstrip().startswith("["):
-            blocks.append(cur)
-            cur = [line]
-        else:
-            cur.append(line)
-    blocks.append(cur)
-
-    def keep(block):
-        if not block or not block[0].lstrip().startswith("["):
-            return True
-        header = block[0].strip().lstrip("[").split(".", 1)[0].strip()
-        in_scope = header in _LEOPREVENT_STRIP_SECTIONS
-        names_leoprevent = "leoprevent" in "".join(block).lower()
-        return not (in_scope and names_leoprevent)
-
-    return "".join("".join(b) for b in blocks if keep(b))
+# Every Codex run gets THIS config.toml, never the operator's. Copying ~/.codex/config.toml
+# carried the Codex app's default model and effort, MCP servers (a Snyk scanner among them),
+# OpenAI plugins (code-review, browser), a notify hook and the operator's own leoprevent
+# registration (a second Stop hook) into the benchmark. Only the hooks feature is set, because
+# the leoprevent arm's plugin hooks need it; model, effort and web access are flags.
+CODEX_RUN_CONFIG = """# Written by the LeoBench arm for one run; the operator's ~/.codex/config.toml is never copied.
+[features]
+hooks = true
+"""
 
 
 def stage_codex_home(host_codex, stage_dir):
-    """Copy auth.json + a sanitized config.toml into a throwaway CODEX_HOME; return its path."""
+    """A throwaway CODEX_HOME holding the operator's auth.json and CODEX_RUN_CONFIG; return its path."""
     dest = os.path.join(stage_dir, "_codex_home")
     os.makedirs(dest, exist_ok=True)
-    for name in ("auth.json", "config.toml"):
-        src = os.path.join(host_codex, name)
-        if not os.path.isfile(src):
-            continue
-        out = os.path.join(dest, name)
-        if name == "config.toml":
-            with open(src, encoding="utf-8") as f:
-                text = f.read()
-            with open(out, "w", encoding="utf-8") as f:
-                f.write(strip_operator_leoprevent(text))
-        else:
-            shutil.copyfile(src, out)
-    auth = os.path.join(dest, "auth.json")
-    if os.path.isfile(auth):
-        os.chmod(auth, 0o600)
+    shutil.copyfile(os.path.join(host_codex, "auth.json"), os.path.join(dest, "auth.json"))
+    os.chmod(os.path.join(dest, "auth.json"), 0o600)
+    with open(os.path.join(dest, "config.toml"), "w", encoding="utf-8") as f:
+        f.write(CODEX_RUN_CONFIG)
     return dest
 
 

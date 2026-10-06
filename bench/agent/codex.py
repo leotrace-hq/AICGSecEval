@@ -126,6 +126,10 @@ class CodexAgentBench(AgentBenchBase):
         # sandbox (it implies the sandbox, so --sandbox must not also be passed). Writes stay in
         # the workspace; there is no arbitrary host command execution.
         cmd += ["--approve-for-me", "--skip-git-repo-check"]
+        # No web: every A.S.E task is a published CVE, so an agent that searches finds the fix.
+        # The Claude adapter is already limited to Read/Write/Edit/Grep; this puts Codex on the
+        # same footing (and the command line beats any config).
+        cmd += ["-c", 'web_search="disabled"']
         if self._arm == "leoprevent":
             # The plugin's Stop hook posts the diff to the review server, so the workspace-write
             # sandbox must permit outbound network for that one call; hooks still need trust
