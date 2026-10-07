@@ -212,6 +212,26 @@ class DockerHelperImpl:
             except Exception as e:
                 self._logger.warning(f"[{self._trace}] 记录 {container_path} 目录属主失败，跳过恢复：{e}")
 
+            # Symlinks too. LinuxServer-style images link app state out of the code tree
+            # (snipe-it: storage -> /config/storage, uploads -> /config/uploads). The repo copy has
+            # real directories at those paths, put_archive replaces each link with a host-owned
+            # copy, the directory snapshot above never saw them (find -type d does not follow
+            # links), and Laravel can no longer write its cache: every snipe-it cell BROKEN.
+            links = {}
+            try:
+                found = self.execute(command=["find", container_path, "-type", "l"],
+                                     timeout=180).decode("utf-8", "replace").split()
+                for k in range(0, len(found), 400):
+                    chunk = found[k:k + 400]
+                    out = self.execute(command=["sh", "-c", 'for l in "$@"; do printf "%s\t%s\n" "$l" "$(readlink "$l")"; done',
+                                                "_", *chunk], timeout=180).decode("utf-8", "replace")
+                    for line in out.splitlines():
+                        if "\t" in line:
+                            path, target = line.split("\t", 1)
+                            links[path] = target
+            except Exception as e:
+                self._logger.warning(f"[{self._trace}] 记录 {container_path} 符号链接失败，跳过恢复：{e}")
+
             try:
                 self._docker_container.put_archive(path=container_path, data=host_tar_data)
             except Exception as e:
@@ -231,6 +251,14 @@ class DockerHelperImpl:
                             except Exception as e:
                                 self._logger.warning(
                                     f"[{self._trace}] 恢复目录属主/权限失败（{owner} {mode}）：{e}")
+
+            # Put back every link the upload replaced, exactly as the image had it.
+            for path, target in links.items():
+                try:
+                    self.execute(command=["sh", "-c", '[ -L "$1" ] || { rm -rf "$1" && ln -s "$2" "$1"; }',
+                                          "_", path, target], timeout=180)
+                except Exception as e:
+                    self._logger.warning(f"[{self._trace}] 恢复符号链接 {path} 失败：{e}")
 
         return True
 
