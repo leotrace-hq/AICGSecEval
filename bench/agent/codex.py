@@ -6,6 +6,7 @@ import tempfile
 import time
 from bench.agent.base import AgentBenchBase
 from bench.agent import _leobench
+from bench.agent import _corridor
 
 
 # --- LeoBench arm support (see bench/agent/claude_code.py for the rationale) ------
@@ -15,6 +16,8 @@ from bench.agent import _leobench
 # Auth defaults to a ChatGPT subscription (~/.codex/auth.json, auth_mode=chatgpt), not a
 # billed OpenAI key. The operator's own leoprevent registration is stripped from the staged
 # config so it does not load a second time (the double-review bug).
+# arm=corridor (--corridor_mode long-running | developer) and arm=commit-control are set up by
+# bench/agent/_corridor.py; their extra `codex exec` arguments come from CorridorCell.codex_args.
 
 class CodexAgentBench(AgentBenchBase):
     def __init__(self, logger, repo_dir, agent_args):
@@ -32,6 +35,12 @@ class CodexAgentBench(AgentBenchBase):
         self._server_url = agent_args.leoprevent_server_url
         self._stage = None
         self._env = None
+        self._corridor_mode = None
+        self._corridor = None
+        if self._arm in _corridor.ARMS:
+            self._corridor_mode = _corridor.resolve_mode(self._arm, agent_args.corridor_mode)
+            self._corridor = _corridor.CorridorCell(self._arm, self._corridor_mode, "codex", repo_dir,
+                                                    agent_args.corridor_dist_dir, logger)
 
     @staticmethod
     def parse_args(args):
@@ -50,8 +59,18 @@ class CodexAgentBench(AgentBenchBase):
                                  "config.toml cannot set it")
         parser.add_argument("--codex_sandbox_mode", type=str, default="workspace-write", help="沙箱模式（保留兼容，leobench 臂统一使用 bypass）")
         # --- LeoBench arm/auth options ---
-        parser.add_argument("--arm", type=str, choices=["raw", "leoprevent"], default="raw",
-                            help="raw = agent alone; leoprevent = agent with the LeoPrevent review plugin")
+        parser.add_argument("--arm", type=str, choices=["raw", "leoprevent", "corridor", "commit-control"],
+                            default="raw",
+                            help="raw = agent alone; leoprevent = agent with the LeoPrevent review plugin; "
+                                 "corridor = agent with Corridor (--corridor_mode); "
+                                 "commit-control = raw plus the commit sentence")
+        parser.add_argument("--corridor_mode", type=str, choices=list(_corridor.MODES),
+                            default=os.environ.get("CORRIDOR_MODE"),
+                            help="Corridor setup for --arm corridor (default $CORRIDOR_MODE)")
+        parser.add_argument("--corridor_dist_dir", type=str,
+                            default=os.environ.get("CORRIDOR_DIST_DIR"),
+                            help="staged Corridor distribution for --arm corridor (default "
+                                 "$CORRIDOR_DIST_DIR); the key comes from $CORRIDOR_API_KEY only")
         parser.add_argument("--auth", type=str, choices=["subscription", "api-key"], default="subscription",
                             help="subscription uses ~/.codex/auth.json (ChatGPT); refuses to fall back to a billed OpenAI key")
         parser.add_argument("--leoprevent_plugin_dir", type=str,
@@ -69,6 +88,8 @@ class CodexAgentBench(AgentBenchBase):
             raise RuntimeError("--arm leoprevent needs the LeoPrevent plugin directory; set "
                                "$LEOPREVENT_PLUGIN_DIR or pass --leoprevent_plugin_dir.")
         env = dict(os.environ)
+        # No agent ever needs the Corridor key (the install step gets it, the agent does not).
+        env.pop(_corridor.API_KEY_ENV, None)
         self._stage = tempfile.mkdtemp(prefix="asecodex-")
 
         if self._auth == "subscription":
@@ -93,6 +114,17 @@ class CodexAgentBench(AgentBenchBase):
                 if r.returncode != 0:
                     raise RuntimeError(f"codex plugin setup failed ({' '.join(cmd[:3])}...):\n{r.stderr[-400:]}")
             self.logger.info(f"Codex leoprevent plugin installed; server={self._server_url}")
+
+        if self._corridor is not None:
+            # Install and verify before the agent starts (into the run's CODEX_HOME, never the
+            # operator's); a failure raises (cycle failed, record says installed=false).
+            try:
+                self._corridor.prepare(
+                    {"CODEX_HOME": env["CODEX_HOME"]} if env.get("CODEX_HOME") else {})
+            except Exception:
+                shutil.rmtree(self._stage, ignore_errors=True)
+                raise
+            self._corridor.apply_agent_env(env)
 
         self._env = env
         self.logger.info(f"Codex Agent ready (arm={self._arm}, auth={self._auth})")
@@ -136,11 +168,29 @@ class CodexAgentBench(AgentBenchBase):
             # bypassed to fire headlessly. Neither widens filesystem access beyond the workspace.
             cmd += ["-c", "sandbox_workspace_write.network_access=true",
                     "--dangerously-bypass-hook-trust"]
+        if self._corridor is not None:
+            cmd += self._corridor.codex_args()
         return cmd
 
+    def build_prompt(self, file_path, function_summary, context_file_list):
+        return _corridor.with_commit_instruction(
+            self.make_prompt(file_path, function_summary, context_file_list),
+            self._arm, self._corridor_mode)
+
     async def generate_code(self, file_path, function_summary, context_file_list):
-        prompt = self.make_prompt(file_path, function_summary, context_file_list)
+        prompt = self.build_prompt(file_path, function_summary, context_file_list)
         args = self._argv(prompt)
+        if self._corridor is None:
+            return self._run(args)
+        stdout = []
+        try:
+            return self._run(args, stdout)
+        finally:
+            text = b"".join(stdout).decode(errors="replace")
+            review = self._corridor.finish(_corridor.codex_events(text), file_path)
+            self.logger.info(f"{self._arm} record: {review.get('reason') or review}")
+
+    def _run(self, args, stdout_sink=None):
         self.logger.info(f"Codex run command: {args[:2]} ...prompt... {args[3:]}")
 
         try:
@@ -153,6 +203,8 @@ class CodexAgentBench(AgentBenchBase):
                     out = process.stdout.read()
                     if not out:
                         break
+                    if stdout_sink is not None:
+                        stdout_sink.append(out)
                     self.logger.info(f"Codex output: {out.decode(errors='replace').strip()}")
                 while True:
                     err = process.stderr.read()
@@ -160,6 +212,14 @@ class CodexAgentBench(AgentBenchBase):
                         break
                     self.logger.info(f"Codex output error: {err.decode(errors='replace').strip()}")
                 time.sleep(0.1)
+            if stdout_sink is not None:
+                # The loop above stops at exit and can leave the last events in the pipe; the
+                # corridor record is classified from them, so drain the rest.
+                os.set_blocking(process.stdout.fileno(), True)
+                tail = process.stdout.read()
+                if tail:
+                    stdout_sink.append(tail)
+                    self.logger.info(f"Codex output: {tail.decode(errors='replace').strip()}")
             self.logger.info(f"Codex run finish, exitcode: {process.returncode}")
             return process.returncode == 0
         except Exception as e:

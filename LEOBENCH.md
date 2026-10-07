@@ -3,6 +3,10 @@
 This branch (`leobench-arm`) carries one change to A.S.E itself: the agent adapters take an
 `--arm raw|leoprevent` axis, so the same task can be generated with and without a security
 reviewer attached. That has to patch A.S.E's source, which is why this branch exists.
+The axis has since grown `security-guidance` (Claude only), `corridor` (with `--corridor_mode
+long-running|developer`) and `commit-control`; the Corridor pieces live in
+`bench/agent/_corridor.py` and are documented in leobench `ase/docs/CORRIDOR-ARM.md`. Tests:
+`.venv/bin/python -m unittest discover -s tests`.
 
 Everything else that was once here, the orchestration, cohort pins, reporting and the audit
 ledgers, now lives in the `leobench` repository under `ase/`. It is not A.S.E's code and does not

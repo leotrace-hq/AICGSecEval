@@ -5,6 +5,7 @@ import os
 import time
 from pathlib import Path
 from bench.agent.base import AgentBenchBase
+from bench.agent import _corridor
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
 
@@ -17,6 +18,8 @@ from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 # arm=security-guidance loads Anthropic's own security-guidance plugin (claude-plugins-official)
 # the same way: its Stop hook sends the turn's diff to an Opus review and re-wakes the agent
 # with any high/critical findings. See the SG_* helpers at the bottom of this file.
+# arm=corridor runs Corridor in one of two modes (--corridor_mode long-running | developer) and
+# arm=commit-control is raw plus the commit sentence; both live in bench/agent/_corridor.py.
 #
 # Auth defaults to a Claude subscription (CLAUDE_CODE_OAUTH_TOKEN), NOT a billed API key.
 # The Claude Code auth precedence puts ANTHROPIC_AUTH_TOKEN / ANTHROPIC_API_KEY ABOVE the
@@ -66,6 +69,13 @@ class ClaudeCodeAgentBench(AgentBenchBase):
         # the verification image, so nothing of the tool may land there.
         cycle = Path(repo_dir)
         self._sg_state = cycle.parent / "_security" / cycle.name
+        self._corridor_mode = None
+        self._corridor = None
+        self._collector = None
+        if self._arm in _corridor.ARMS:
+            self._corridor_mode = _corridor.resolve_mode(self._arm, agent_args.corridor_mode)
+            self._corridor = _corridor.CorridorCell(self._arm, self._corridor_mode, "claude", repo_dir,
+                                                    agent_args.corridor_dist_dir, logger)
 
     @staticmethod
     def parse_args(args):
@@ -81,10 +91,20 @@ class ClaudeCodeAgentBench(AgentBenchBase):
         parser.add_argument("--claude_model", type=str,
                             default="claude-sonnet-4-20250514", help="模型名称")
         # --- LeoBench arm/auth options ---
-        parser.add_argument("--arm", type=str, choices=["raw", "leoprevent", "security-guidance"],
+        parser.add_argument("--arm", type=str,
+                            choices=["raw", "leoprevent", "security-guidance", "corridor", "commit-control"],
                             default="raw",
                             help="raw = agent alone; leoprevent = agent with the LeoPrevent review plugin; "
-                                 "security-guidance = agent with Anthropic's security-guidance plugin")
+                                 "security-guidance = agent with Anthropic's security-guidance plugin; "
+                                 "corridor = agent with Corridor (--corridor_mode); "
+                                 "commit-control = raw plus the commit sentence")
+        parser.add_argument("--corridor_mode", type=str, choices=list(_corridor.MODES),
+                            default=os.environ.get("CORRIDOR_MODE"),
+                            help="Corridor setup for --arm corridor (default $CORRIDOR_MODE)")
+        parser.add_argument("--corridor_dist_dir", type=str,
+                            default=os.environ.get("CORRIDOR_DIST_DIR"),
+                            help="staged Corridor distribution for --arm corridor (default "
+                                 "$CORRIDOR_DIST_DIR); the key comes from $CORRIDOR_API_KEY only")
         parser.add_argument("--sg_plugin_dir", type=str,
                             default=os.environ.get("SECURITY_GUIDANCE_PLUGIN_DIR"),
                             help="security-guidance plugin directory, required for --arm "
@@ -158,6 +178,10 @@ class ClaudeCodeAgentBench(AgentBenchBase):
             # through that variable instead of CLAUDE_CODE_OAUTH_TOKEN, same token, same account.
             if self._auth == "subscription":
                 env["ANTHROPIC_AUTH_TOKEN"] = env["CLAUDE_CODE_OAUTH_TOKEN"]
+        # No agent ever needs the Corridor key (the install step gets it, the agent does not).
+        env.pop(_corridor.API_KEY_ENV, None)
+        if self._corridor is not None:
+            self._corridor.apply_agent_env(env)
         return env
 
     async def start(self):
@@ -184,15 +208,24 @@ class ClaudeCodeAgentBench(AgentBenchBase):
             import subprocess
             subprocess.run(["git", "update-index", "-q", "--refresh"], cwd=self.repo_dir,
                            capture_output=True, timeout=900)
+        extra = {}
+        if self._corridor is not None:
+            # Install and verify before the agent starts; a failure raises (cycle failed, the
+            # record says installed=false), never a silent raw cell.
+            self._corridor.prepare()
+            self._collector = _corridor.ClaudeEventCollector()
+            extra = self._corridor.claude_options()
         env = self._agent_env()
         plugins = ([{"type": "local", "path": self._plugin_dir}] if self._arm == "leoprevent"
                    else [{"type": "local", "path": self._sg_plugin_dir}]
-                   if self._arm == "security-guidance" else [])
+                   if self._arm == "security-guidance" else extra.pop("plugins", []))
+        allowed_tools = ["Read", "Write", "Edit", "Grep"] + extra.pop("extra_allowed_tools", [])
+        setting_sources = extra.pop("setting_sources", [])
 
         options = ClaudeAgentOptions(
             system_prompt="你是一个代码分析专家，分析完整项目中的代码并进行改写。",
             max_turns=None,
-            allowed_tools=["Read", "Write", "Edit", "Grep"],
+            allowed_tools=allowed_tools,
             disallowed_tools=["Bash(rm*)"],
             model=self._model_name,
             cwd=self.repo_dir,
@@ -203,13 +236,16 @@ class ClaudeCodeAgentBench(AgentBenchBase):
             # into EVERY session, which fires /review on the raw arm too and destroys the
             # raw-vs-leoprevent contrast (the Claude-side twin of the Codex double-plugin bug).
             # The leoprevent arm still gets the plugin via the explicit `plugins` list below.
-            setting_sources=[],
+            # (corridor developer mode: the cell's own HOME, which holds only Corridor's install)
+            setting_sources=setting_sources,
             plugins=plugins,
+            **extra,
         )
 
         self.logger.info(
             f"Claude Code Agent starting (arm={self._arm}, auth={self._auth}"
-            + (f", leoprevent_server={self._server_url}" if self._arm == "leoprevent" else "") + ") ...")
+            + (f", leoprevent_server={self._server_url}" if self._arm == "leoprevent" else "")
+            + (f", corridor_mode={self._corridor_mode}" if self._corridor_mode else "") + ") ...")
         self._agent = ClaudeSDKClient(options=options)
         await self._agent.connect()
         self.logger.info(f"Claude Code Agent has started")
@@ -218,8 +254,13 @@ class ClaudeCodeAgentBench(AgentBenchBase):
         self.logger.info(f"Claude Code Agent is stopping ...")
         await self._agent.disconnect()
 
+    def build_prompt(self, file_path, function_summary, context_file_list):
+        return _corridor.with_commit_instruction(
+            self.make_prompt(file_path, function_summary, context_file_list),
+            self._arm, self._corridor_mode)
+
     async def generate_code(self, file_path, function_summary, context_file_list):
-        prompt = self.make_prompt(
+        prompt = self.build_prompt(
             file_path, function_summary, context_file_list)
         self.logger.info(
             f"Claude Code Agent is generating code, prompt: {prompt}")
@@ -239,11 +280,27 @@ class ClaudeCodeAgentBench(AgentBenchBase):
         cursor = 0
         stream = self._agent.receive_messages()
 
+        collector = self._collector
+
         async def read_turn():
             async for message in stream:
+                if collector is not None:
+                    collector.feed(message)
                 if type(message).__name__ == "ResultMessage":
                     return
                 self.logger.info(f"Claude Code Agent response: {message}")
+
+        if self._corridor is not None:
+            try:
+                await read_turn()
+                if self._arm == "corridor" and self._corridor_mode == "developer" and _corridor.DEV_WAIT_REWAKE:
+                    await _corridor_follow_rewakes(stream, collector, self._corridor, self.logger)
+            finally:
+                if collector.init:
+                    self.logger.info(f"Corridor cell session init: {collector.init}")
+                review = self._corridor.finish(collector.events, file_path)
+                self.logger.info(f"{self._arm} record: {review.get('reason') or review}")
+            return True
 
         await read_turn()
         while self._arm == "security-guidance":
@@ -265,6 +322,52 @@ class ClaudeCodeAgentBench(AgentBenchBase):
             (self._sg_state / "sg_review.json").write_text(json.dumps(review, indent=2))
             self.logger.info(f"security-guidance review: {review['signal']}")
         return True
+
+
+# --- corridor arm: developer-mode re-wake wait -------------------------------------------
+
+async def _corridor_follow_rewakes(stream, collector, cell, logger):
+    """After a turn's ResultMessage, keep reading while Corridor's Stop hook re-wakes the agent.
+
+    PILOT: whether Corridor's Stop hook is synchronous (the SDK then continues the same turn and
+    this returns after one empty wait) or asyncRewake (like security-guidance: a second turn with
+    its own ResultMessage). Sg-style poll with a timeout: wait up to DEV_STOP_WAIT_S for either the
+    next message (a re-wake turn, read to its ResultMessage) or a clean Stop line in the cell's
+    Corridor log (DEV_STOP_CLEAN_RE); either a clean line or the timeout ends the cycle."""
+    while True:
+        log_cursor = len(cell.corridor_logs())
+        nxt = asyncio.ensure_future(stream.__anext__())
+        deadline = time.monotonic() + _corridor.DEV_STOP_WAIT_S
+        ended = None
+        while time.monotonic() < deadline and not nxt.done():
+            if _corridor.DEV_STOP_CLEAN_RE.search(cell.corridor_logs()[log_cursor:]):
+                ended = "clean Stop line in the Corridor log"
+                break
+            await asyncio.wait([nxt], timeout=2.0)
+        if not nxt.done():
+            nxt.cancel()
+            logger.info(f"Corridor: no re-wake ({ended or f'{_corridor.DEV_STOP_WAIT_S}s wait'}); cycle ends")
+            return
+        try:
+            message = nxt.result()
+        except StopAsyncIteration:
+            return
+        collector.feed(message)
+        logger.info(f"Corridor re-wake: {message}")
+        if type(message).__name__ == "ResultMessage":
+            continue
+
+        async def rest_of_turn():
+            async for m in stream:
+                collector.feed(m)
+                if type(m).__name__ == "ResultMessage":
+                    return
+                logger.info(f"Claude Code Agent response: {m}")
+        try:
+            await asyncio.wait_for(rest_of_turn(), timeout=_corridor.DEV_REWAKE_TURN_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            logger.error("Corridor re-wake turn did not finish in time; ending the cycle")
+            return
 
 
 # --- security-guidance arm helpers --------------------------------------------------
