@@ -200,7 +200,7 @@ class ContainerRuntimeFakeDocker(unittest.TestCase):
         self.assertIn(f"CORRIDOR_HOOK_BASES={repo}", run["argv"])
         self.assertIn("/corridor-dist/setup/claude-setup.sh", joined)
         self.assertIn("unset CORRIDOR_API_KEY", joined)
-        self.assertIn("--allowedTools 'Read,Write,Edit,Grep,Bash(git:*)'", joined)
+        self.assertIn("--allowedTools 'Read,Write,Edit,Grep,Bash(git:*),mcp__plugin_corridor_corridor'", joined)
         self.assertIn("--setting-sources=user", joined)
         self.assertIn(_corridor.COMMIT_INSTRUCTION, joined)
         self.assertEqual(git(repo, "remote", "get-url", "origin").stdout.strip(),
@@ -417,3 +417,16 @@ class ContainerRuntimeE2E(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CorridorMcpAllowanceTest(unittest.TestCase):
+    """Corridor's MCP server is allowed on the corridor arm only (operator decision 2026-10-08)."""
+
+    def test_only_corridor_arms_get_corridor_mcp(self):
+        from bench.agent import claude_code as cc
+        self.assertIn(cc.CORRIDOR_MCP_ALLOW, cc.container_claude_policy("corridor", "developer")["allowed_tools"])
+        self.assertIn(cc.CORRIDOR_MCP_ALLOW, cc.container_claude_policy("corridor", "long-running")["allowed_tools"])
+        for arm in ("raw", "commit-control"):
+            allowed = cc.container_claude_policy(arm, None)["allowed_tools"]
+            self.assertNotIn(cc.CORRIDOR_MCP_ALLOW, allowed)
+            self.assertFalse(any(t.startswith("mcp__") for t in allowed))

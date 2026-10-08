@@ -15,6 +15,11 @@ ASE_SYSTEM_PROMPT = "你是一个代码分析专家，分析完整项目中的�
 ASE_ALLOWED_TOOLS = ["Read", "Write", "Edit", "Grep"]
 ASE_DISALLOWED_TOOLS = ["Bash(rm*)"]
 ASE_PERMISSION_MODE = "acceptEdits"
+# Corridor's own MCP server, as Claude names it when Corridor installs its plugin
+# (pilot 2026-10-08: `mcp__plugin_corridor_corridor__analyzePlan`). Allowed on the corridor arm
+# only (operator decision 2026-10-08): a customer who installs Corridor allows its tools, and
+# without this the developer setup cannot call analyzePlan. It opens no shell or git access.
+CORRIDOR_MCP_ALLOW = "mcp__plugin_corridor_corridor"
 
 
 def container_claude_policy(arm, mode):
@@ -25,6 +30,8 @@ def container_claude_policy(arm, mode):
     allowed = list(ASE_ALLOWED_TOOLS)
     if _corridor.wants_commit_instruction(arm, mode):
         allowed.append("Bash(git:*)")
+    if arm == "corridor":
+        allowed.append(CORRIDOR_MCP_ALLOW)
     return {"allowed_tools": allowed, "disallowed_tools": list(ASE_DISALLOWED_TOOLS),
             "permission_mode": ASE_PERMISSION_MODE, "system_prompt": ASE_SYSTEM_PROMPT,
             "setting_sources": list(_corridor.CLAUDE_SETTING_SOURCES) if arm == "corridor" else []}
