@@ -299,11 +299,14 @@ def _reflog(repo):
 
 
 def restored_original(repo, base, vuln_file):
-    """Is the final vuln file byte-identical to the base commit's version (`git show base:path`)?
+    """Is the final vuln file byte-identical to its version at `base` (HEAD when the agent started)?
 
-    A.S.E masks the function as an UNCOMMITTED edit on top of base. An agent that answers a
-    blocked commit with `git stash` / `git checkout .` restores the ORIGINAL code from HEAD: that
-    cell graded the upstream code, not the agent's. Such cells are excluded (see the doc)."""
+    The harness seals each cycle's repo (bench/utils.py seal_task_repo), so HEAD holds the
+    MASKED file. An agent that answers a blocked commit with `git stash` / `git checkout .` /
+    `git reset --hard` throws its own code away and gets the masked file back; A.S.E then fails
+    the cycle because the vuln file is unchanged. Before sealing, the same commands restored the
+    ORIGINAL upstream code from HEAD and the cell graded that. Either way the cell does not grade
+    the agent's code and is excluded (see the doc)."""
     if not base or not vuln_file:
         return False
     target = os.path.realpath(os.path.join(repo, vuln_file))

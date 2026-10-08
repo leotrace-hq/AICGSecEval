@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT))
 from bench.agent import _corridor  # noqa: E402
 from bench.agent import claude_code as new_claude  # noqa: E402
 from bench.agent import codex as new_codex  # noqa: E402
+from bench.utils import seal_task_repo  # noqa: E402
 
 # The commit the published inscope 38 run used: the adapters as they were before this arm.
 BASELINE = "dadf29f"
@@ -103,7 +104,8 @@ def make_dist(root):
 
 
 def make_cycle(root, name="inst_cycle1"):
-    """A cycle repo as A.S.E leaves it: HEAD = base, the function masked as an uncommitted edit."""
+    """A cycle repo as A.S.E leaves it: the upstream base with the function masked, then sealed
+    (one commit of the masked tree, so HEAD holds the masked file and not the original)."""
     repo = Path(root) / "generated_code" / "codex__b" / name
     repo.mkdir(parents=True)
     git(repo, "init", "-q")
@@ -112,6 +114,7 @@ def make_cycle(root, name="inst_cycle1"):
     git(repo, "add", "app.py")
     git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "base")
     (repo / "app.py").write_text(MASKED)
+    seal_task_repo(repo, "app.py", MASKED)
     return repo
 
 
@@ -273,8 +276,8 @@ class LongRunningTests(Base):
         env = self.agent_env(cell)
         (repo / "app.py").write_text("def f(x):\n    return eval(x)  # VULN_MARKER\n")
         events = [run_cmd(repo, env, "git add -A && git commit -m x"),
-                  run_cmd(repo, env, "git reset -q --hard HEAD")]   # the original comes back
-        self.assertEqual((repo / "app.py").read_text(), ORIGINAL)
+                  run_cmd(repo, env, "git reset -q --hard HEAD")]   # the masked file comes back
+        self.assertEqual((repo / "app.py").read_text(), MASKED)
         review = cell.finish(events, "app.py")
         self.assertTrue(review["restored_original"])
         self.assertFalse(_corridor.restored_original(repo, cell.base, "../outside.py"))
