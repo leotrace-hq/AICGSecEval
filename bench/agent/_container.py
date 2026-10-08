@@ -179,6 +179,12 @@ class ContainerRuntime:
         restored = _corridor.restored_original(self.repo, base, vuln_file)
         extra = {"restored_original": restored, "runtime": "container",
                  "stub_agent": bool(res.get("stub_agent"))}
+        if res.get("status") not in ("ok", "empty"):
+            # The agent did not finish (2026-10-08: Codex "workspace is out of credits" made
+            # each cycle exit 1 after ~6 s). A.S.E already files the cycle as failed because we
+            # return False, but the record must not read as a valid Corridor cell either.
+            extra.update({"valid": False,
+                          "reason": f"agent {res.get('status')} (rc={res.get('returncode')})"})
         if self.arm == "corridor":
             review = dict(res.get("corridor_review") or {})
             review.update(extra)

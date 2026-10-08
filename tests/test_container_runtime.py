@@ -188,6 +188,28 @@ class ContainerRuntimeFakeDocker(unittest.TestCase):
         for secret in (TOKEN, KEY):
             self.assertNotIn(secret, self.all_text())
 
+    def test_failed_agent_record_is_invalid(self):
+        # 2026-10-08: Codex out of credits exited 1 after ~6 s. The cycle is filed as failed
+        # (the adapter returns False) and its Corridor record must not read as valid.
+        dist = self.staged_dist()
+        repo = make_cycle(self.tmp, "codex__codex_corridor_lr", "Capsa_CVE-2022-21675_cycle1")
+        real_run = subprocess.run
+
+        def fake_run(cmd, *a, **kw):
+            if "--result" not in cmd:
+                return real_run(cmd, *a, **kw)
+            Path(cmd[cmd.index("--result") + 1]).write_text(json.dumps({
+                "status": "agent-failed", "returncode": 1,
+                "corridor_review": {"valid": True, "reviewed": True, "reason": "scanned"}}))
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+        with mock.patch.object(_container.subprocess, "run", fake_run):
+            bench, ok = run_adapter("codex", repo, adapter_args(
+                "codex", "corridor", "long-running", ["--corridor_dist_dir", dist]))
+        self.assertFalse(ok)
+        review = json.loads((_corridor.state_dir_for(repo) / "corridor_review.json").read_text())
+        self.assertFalse(review["valid"], review)
+        self.assertEqual(review["reason"], "agent agent-failed (rc=1)")
+
     def test_claude_corridor_long_running_record(self):
         dist = self.staged_dist()
         repo = make_cycle(self.tmp, "claude_code__claude_corridor_lr", "Capsa_CVE-2022-21675_cycle1")
