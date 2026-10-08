@@ -236,7 +236,9 @@ class ClaudeCodeAgentBench(AgentBenchBase):
             # into EVERY session, which fires /review on the raw arm too and destroys the
             # raw-vs-leoprevent contrast (the Claude-side twin of the Codex double-plugin bug).
             # The leoprevent arm still gets the plugin via the explicit `plugins` list below.
-            # (corridor developer mode: the cell's own HOME, which holds only Corridor's install)
+            # (corridor, both modes: ["user"] from the cell's own HOME, which holds only what
+            # Corridor installed: its plugin in developer mode, its Claude Code hooks in
+            # long-running mode. No explicit plugin: Corridor registers its own.)
             setting_sources=setting_sources,
             plugins=plugins,
             **extra,

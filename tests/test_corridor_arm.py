@@ -33,13 +33,31 @@ FAKE_KEY = "fake-corridor-key-0123456789"
 LOG = logging.getLogger("corridor-test")
 
 FAKE_CLI = r'''#!{python}
-import os, subprocess, sys
+# FAKE Corridor CLI: the shapes of the real v0.0.87 (pilot 2026-10-08), contacting nothing.
+import json, os, re, subprocess, sys
 home = os.environ["HOME"]
 cdir = os.path.join(home, ".corridor")
-os.makedirs(os.path.join(cdir, "tmp"), exist_ok=True)
-with open(os.path.join(cdir, "tmp", "argv.txt"), "a") as f:
+tmp = os.path.join(cdir, "tmp")
+os.makedirs(tmp, exist_ok=True)
+OPEN = os.path.join(tmp, "open.json")
+DASH = "\u2014"
+with open(os.path.join(tmp, "argv.txt"), "a") as f:
     f.write(" ".join(sys.argv) + "\n")
 args = sys.argv[1:]
+
+def write(path, text, mode="w"):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, mode) as f:
+        f.write(text)
+
+def merge(path, update):
+    try:
+        data = json.load(open(path))
+    except Exception:
+        data = {}
+    data.update(update)
+    write(path, json.dumps(data))
+
 if args[:1] == ["--version"]:
     print("corridor 0.0.0-fake"); sys.exit(0)
 if args[:1] == ["install"]:
@@ -47,26 +65,70 @@ if args[:1] == ["install"]:
         print("install failed", file=sys.stderr); sys.exit(1)
     # A careless CLI echoing the key: the harness must redact it from what it records.
     print("authenticated with key " + os.environ["CORRIDOR_API_KEY"])
-    with open(os.path.join(cdir, "config.env"), "w") as f:
-        f.write("CORRIDOR_ACCESS_TOKEN=fake-access-token\nCORRIDOR_API_TOKEN_ID=tok-1\n"
-                "CORRIDOR_BLOCKING_STOP_HOOKS=false\nCORRIDOR_DEBUG=true\n")
-    if "--no-mcp" not in args and os.environ.get("FAKE_NO_PLUGIN") != "1":
-        os.makedirs(os.path.join(cdir, "plugin-claude", "hooks"), exist_ok=True)
-        with open(os.path.join(cdir, "plugin-claude", "hooks", "hooks.json"), "w") as f:
-            f.write('{"hooks": {}}')
+    write(os.path.join(cdir, "config.env"),
+          "CORRIDOR_ACCESS_TOKEN=fake-access-token\nCORRIDOR_BASE_URL=https://app.corridor.invalid\n"
+          "CORRIDOR_TOKEN_SOURCE=api-key\nCORRIDOR_BLOCKING_STOP_HOOKS=false\n"
+          "CORRIDOR_PRE_COMMIT_SHADOW=" + os.environ.get("FAKE_PRE_COMMIT_SHADOW", "false") + "\n"
+          "CORRIDOR_RAW_HOOK_INGEST=false\n")
+    if "ide-extension" in args:
+        merge(os.path.join(home, ".claude", "settings.json"),
+              {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "corridor-hook Stop"}]}]}})
+        sys.exit(0)
+    if os.environ.get("FAKE_NO_PLUGIN") != "1":
+        write(os.path.join(cdir, "plugin-claude", "hooks", "hooks.json"), '{"hooks": {}}')
+        merge(os.path.join(home, ".claude", "settings.json"),
+              {"enabledPlugins": {"corridor@corridor-plugins": True},
+               "extraKnownMarketplaces": {"corridor-plugins": {"source": {"source": "directory"}}}})
+        print("Installed plugin: corridor@corridor-plugins via claude")
+        write(os.path.join(home, ".claude", "CLAUDE.md"), "<corridor>\nuse analyzePlan\n</corridor>\n")
+    write(os.path.join(home, ".codex", "config.toml"),
+          '\n[mcp_servers.corridor]\nurl = "https://app.corridor.invalid/api/mcp"\n\n'
+          '[mcp_servers.corridor.http_headers]\nAuthorization = "Bearer fake-access-token"\n', "a")
+    write(os.path.join(home, ".codex", "AGENTS.md"), "<corridor>\nuse analyzePlan\n</corridor>\n")
+    print("Codex hooks aren't auto-installable on this OS (no per-user managed-hooks path)")
     sys.exit(0)
 if args[:2] == ["scan", "--staged"]:
-    with open(os.path.join(cdir, "tmp", "scan.log"), "a") as f:
+    with open(os.path.join(tmp, "scan.log"), "a") as f:
         f.write("scan --staged\n")
+    url = subprocess.run(["git", "remote", "get-url", "origin"], capture_output=True, text=True).stdout.strip()
+    known = os.environ.get("FAKE_CORRIDOR_PROJECTS")
+    m = re.fullmatch(r"https://github\.com/leotrace-benchmarking/([\w.-]+)\.git", url)
+    if not m or (known is not None and m.group(1) not in known.split(",")):
+        print(json.dumps({"status": "failed", "hasIssues": False, "error":
+                          'development-scan/analyze error (status 404): {"error":"Project not found"}'}))
+        sys.exit(0)
+    try:
+        still = json.load(open(OPEN))
+    except Exception:
+        still = []
+    if still:
+        print(f"\x1b[33m{len(still)} finding(s) still open from prior scan:\x1b[0m\n  \u2022 SQL Injection"
+              f"\n\nError: resolve the open finding(s) above, then retry {DASH} or bypass with "
+              "`git commit --no-verify`", file=sys.stderr)
+        sys.exit(1)
     diff = subprocess.run(["git", "diff", "--cached"], capture_output=True, text=True).stdout
     if "VULN_MARKER" in diff:
-        print("corridor: finding [high] VULN_MARKER in staged diff", file=sys.stderr)
+        fid = "ba03dc30-84db-438c-a486-582112edd771"
+        write(OPEN, json.dumps([fid]))
+        print(f"Corridor found 1 security issue(s) in staged changes:\n\n1. [HIGH] SQL Injection in app.py\n"
+              f"   app.py:2 (CWE-89: Improper Neutralization ... ('SQL Injection'))\n   Finding ID: {fid}\n"
+              f"   explanation\n\nResolve EVERY finding before committing {DASH} do not leave any open.\n"
+              f"Error: 1 Corridor finding(s) block this commit {DASH} fix them and retry, or bypass with "
+              "`git commit --no-verify`", file=sys.stderr)
         sys.exit(1)
     sys.exit(0)
+if args[:2] == ["mcp", "updateFindingState"]:
+    req = json.loads(args[2])
+    try:
+        still = json.load(open(OPEN))
+    except Exception:
+        still = []
+    write(OPEN, json.dumps([i for i in still if i != req.get("findingId")]))
+    print('{"success": true}'); sys.exit(0)
 sys.exit(2)
 '''
 
-# Same shape as Corridor's codex-setup.sh, minus the download: install, then the v5 hook.
+# Same shape as Corridor's codex-setup.sh, minus the download: install, then the v5 repo hook.
 FAKE_SETUP = r'''#!/bin/sh
 mkdir -p "$HOME/.corridor/tmp"
 exec >>"$HOME/.corridor/tmp/codex-plugin.log" 2>&1
@@ -79,6 +141,28 @@ mkdir -p "$(dirname "$H")"
 printf '%s\n' '#!/bin/sh' '# corridor-pre-commit-hook v5' 'BIN="$HOME/.corridor/bin/corridor"' \
   '"$BIN" scan --staged || exit $?' > "$H"
 chmod +x "$H"
+echo ok
+'''
+
+# Same shape as Corridor's claude-setup.sh: --provider claude, a global ~/.corridor/hooks set as
+# core.hooksPath with `git config --system` (falling back to --global), a Husky init.sh under
+# XDG_CONFIG_HOME, and the v6 repo hook.
+FAKE_SETUP_CLAUDE = r'''#!/bin/sh
+mkdir -p "$HOME/.corridor/tmp"
+exec >>"$HOME/.corridor/tmp/claude-plugin.log" 2>&1
+[ -n "${CORRIDOR_API_KEY:-}" ] || { echo "skip: no CORRIDOR_API_KEY"; exit 0; }
+CLI="$HOME/.corridor/bin/corridor"
+"$CLI" install --target ide-extension --provider claude -y --no-mcp || exit 0
+D="$HOME/.corridor/hooks"; mkdir -p "$D"
+printf '%s\n' '#!/bin/sh' '# corridor-pre-commit-hook v6' '"$HOME/.corridor/bin/corridor" scan --staged || exit $?' > "$D/pre-commit"
+chmod +x "$D/pre-commit"
+git config --system core.hooksPath "$D" 2>/dev/null || git config --global core.hooksPath "$D"
+I="${XDG_CONFIG_HOME:-$HOME/.config}/husky"; mkdir -p "$I"; echo '# corridor-husky-init v2' > "$I/init.sh"
+G="$(git rev-parse --path-format=absolute --git-common-dir)/hooks/pre-commit"
+mkdir -p "$(dirname "$G")"
+printf '%s\n' '#!/bin/sh' '# corridor-pre-commit-hook v6' 'if [ -n "${CORRIDOR_CHAINED_SCAN:-}" ]; then exit 0; fi' \
+  '"$HOME/.corridor/bin/corridor" scan --staged || exit $?' > "$G"
+chmod +x "$G"
 echo ok
 '''
 
@@ -98,8 +182,8 @@ def make_dist(root):
     cli = dist / "bin" / "corridor"
     cli.write_text(FAKE_CLI.replace("{python}", sys.executable))
     cli.chmod(cli.stat().st_mode | stat.S_IEXEC)
-    for agent in ("codex", "claude"):
-        (dist / "setup" / f"{agent}-setup.sh").write_text(FAKE_SETUP)
+    (dist / "setup" / "codex-setup.sh").write_text(FAKE_SETUP)
+    (dist / "setup" / "claude-setup.sh").write_text(FAKE_SETUP_CLAUDE)
     return dist
 
 
@@ -138,8 +222,13 @@ class Base(unittest.TestCase):
         self.dist = make_dist(self.tmp)
         self.env = mock.patch.dict(os.environ, {_corridor.API_KEY_ENV: FAKE_KEY})
         self.env.start()
+        self.lockdir = mock.patch.object(_corridor, "LOCK_DIR", os.path.join(self.tmp, "locks"))
+        self.lockdir.start()
 
     def tearDown(self):
+        for repo in list(_corridor._HELD_LOCKS):
+            _corridor.release_project_lock(repo)
+        self.lockdir.stop()
         self.env.stop()
         shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -211,39 +300,150 @@ class LongRunningTests(Base):
         repo = make_cycle(self.tmp)
         cell = _corridor.CorridorCell("corridor", "long-running", agent, repo, self.dist, LOG)
         cell.prepare()
+        self.addCleanup(_corridor.release_project_lock, cell.project_repo)
         return repo, cell
 
     def test_install_verified_and_blocked_then_fixed(self):
         repo, cell = self.cell()
         self.assertTrue(cell.install_ok)
         self.assertIn(_corridor.LR_HOOK_MARKER, (repo / ".git" / "hooks" / "pre-commit").read_text())
+        self.assertEqual(git(repo, "remote", "get-url", "origin").stdout.strip(),
+                         "https://github.com/leotrace-benchmarking/ase-inst.git")
         self.assertFalse((Path.home() / ".corridor" / "tmp" / "argv.txt").exists()
                          and FAKE_KEY in (Path.home() / ".corridor" / "tmp" / "argv.txt").read_text())
         env = self.agent_env(cell)
         (repo / "app.py").write_text("def f(x):\n    return eval(x)  # VULN_MARKER\n")
         events = [run_cmd(repo, env, "git add -A && git commit -m 'complete f'")]
         self.assertNotEqual(events[0]["exit_code"], 0)
-        self.assertIn("VULN_MARKER", events[0]["output"])
+        self.assertIn("Corridor found 1 security issue(s)", events[0]["output"])
         (repo / "app.py").write_text("def f(x):\n    return int(x) + 1\n")
         events.append(run_cmd(repo, env, "git add -A && git commit -m 'complete f safely'"))
-        self.assertEqual(events[1]["exit_code"], 0, events[1]["output"])
+        self.assertIn("still open from prior scan", events[1]["output"])
+        close = ('"$HOME/.corridor/bin/corridor" mcp updateFindingState \'{"findingId":'
+                 '"ba03dc30-84db-438c-a486-582112edd771","state":"closed",'
+                 '"closedReasonCategory":"vulnerability_fixed","closedReason":"int()"}\'')
+        events.append(run_cmd(repo, env, close + " && git commit -m 'complete f safely'"))
+        self.assertEqual(events[2]["exit_code"], 0, events[2]["output"])
         review = cell.finish(events, "app.py")
         self.assertEqual(review["mode"], "long-running")
         self.assertTrue(review["installed"] and review["reviewed"] and review["committed"])
-        self.assertEqual(review["blocked_commits"], 1)
-        self.assertEqual(review["delivered"], 1)
-        self.assertGreaterEqual(review["findings"], 1)
-        self.assertEqual(review["scans"], 2)            # from the scan log lines
+        self.assertTrue(review["valid"])
+        self.assertEqual(review["blocked_commits"], 2)
+        self.assertEqual(review["delivered"], 2)
+        self.assertEqual(review["findings"], 1)
+        self.assertEqual(review["findings_detail"], [{
+            "id": "ba03dc30-84db-438c-a486-582112edd771", "severity": "HIGH",
+            "title": "SQL Injection in app.py", "cwe": "CWE-89", "location": "app.py:2"}])
+        self.assertEqual((review["fp_closed"], review["fixed_closed"], review["bypassed_via_fp"]),
+                         (0, 1, False))
+        self.assertEqual(review["scans"], 3)            # from the scan log lines
+        self.assertEqual(review["project_repo"], "ase-inst")
         self.assertFalse(review["bypassed"] or review["restored_original"])
         self.assertEqual(review["tool"]["cli_version"], "corridor 0.0.0-fake")
         self.assertTrue(review["tool"]["commit_instruction"])
         flags = review["tool"]["config_env_flags"]
-        self.assertEqual(flags, {"CORRIDOR_BLOCKING_STOP_HOOKS": "false", "CORRIDOR_DEBUG": "true"})
+        self.assertEqual(flags["CORRIDOR_PRE_COMMIT_SHADOW"], "false")
+        self.assertFalse(any("TOKEN" in k and "SOURCE" not in k for k in flags))
+        self.assertNotIn("fake-access-token", json.dumps(review))
+        self.assertNotIn("fake-access-token", (cell.corridor / "config.env").read_text())
         on_disk = json.loads((cell.state / "corridor_review.json").read_text())
         self.assertEqual(on_disk, review)
         # the agent's commits carry the benchmark identity, not the operator's
-        self.assertEqual(git(repo, "log", "-1", "--format=%an <%ae>").stdout.strip(),
+        self.assertEqual(git(repo, "log", "-1", "--format=%an <%ae>", env=env).stdout.strip(),
                          f"{_corridor.GIT_IDENTITY[0]} <{_corridor.GIT_IDENTITY[1]}>")
+
+    def test_failed_scan_is_unreviewed_and_invalid(self):
+        with mock.patch.dict(os.environ, {"FAKE_CORRIDOR_PROJECTS": "some-other-project"}):
+            repo, cell = self.cell()
+            env = self.agent_env(cell)
+            (repo / "app.py").write_text("def f(x):\n    return eval(x)  # VULN_MARKER\n")
+            events = [run_cmd(repo, env, "git add -A && git commit -m x")]
+        self.assertEqual(events[0]["exit_code"], 0)          # fail-open: the commit went through
+        review = cell.finish(events, "app.py")
+        self.assertEqual((review["failed_scans"], review["blocked_commits"]), (1, 0))
+        self.assertFalse(review["reviewed"] or review["valid"])
+        self.assertTrue(review["committed"])
+        self.assertTrue(review["reason"].startswith("scan failed: "), review["reason"])
+        self.assertIn("Project not found", review["reason"])
+
+    def test_false_positive_closure_then_commit(self):
+        repo, cell = self.cell()
+        env = self.agent_env(cell)
+        (repo / "app.py").write_text("def f(x):\n    return eval(x)  # VULN_MARKER\n")
+        close = ('"$HOME/.corridor/bin/corridor" mcp updateFindingState \'{"findingId":'
+                 '"ba03dc30-84db-438c-a486-582112edd771","state":"closed",'
+                 '"closedReasonCategory":"false_positive","closedReason":"trusted input"}\'')
+        events = [run_cmd(repo, env, "git add -A && git commit -m x"),
+                  run_cmd(repo, env, close),
+                  run_cmd(repo, env, "git commit -m x")]
+        self.assertEqual(events[2]["exit_code"], 1)    # still VULN_MARKER: a new scan blocks again
+        events.append(run_cmd(repo, env, close + " && git commit -m x"))
+        review = cell.finish(events, "app.py")
+        self.assertEqual(review["fp_closed"], 2)
+        self.assertFalse(review["bypassed_via_fp"])
+        # the same closure followed by a commit that went through
+        ev = [{"kind": "command", "command": close, "output": "{}", "exit_code": 0},
+              {"kind": "command", "command": "git commit -m x", "output": "[main 1] x", "exit_code": 0}]
+        r = _corridor.classify("long-running", ev, "", {"committed": True}, "claude", {})
+        self.assertTrue(r["bypassed_via_fp"] and not r["bypassed"])
+        self.assertIn("closed as false positive, then committed", r["reason"])
+
+    def test_shadow_mode_is_invalid(self):
+        with mock.patch.dict(os.environ, {"FAKE_PRE_COMMIT_SHADOW": "true"}):
+            repo, cell = self.cell()
+        review = cell.finish([], "app.py")
+        self.assertTrue(review["shadow_mode"])
+        self.assertFalse(review["valid"])
+        self.assertIn("CORRIDOR_PRE_COMMIT_SHADOW=true", review["reason"])
+
+    def test_claude_setup_never_touches_host_git_or_xdg_config(self):
+        host = Path(self.tmp) / "host"
+        host.mkdir()
+        sentinels = {"GIT_CONFIG_SYSTEM": host / "etc-gitconfig", "GIT_CONFIG_GLOBAL": host / "gitconfig"}
+        for p in sentinels.values():
+            p.write_text("[core]\n\tsentinel = host\n")
+        xdg = host / "xdg"
+        xdg.mkdir()
+        with mock.patch.dict(os.environ, {**{k: str(v) for k, v in sentinels.items()},
+                                          "XDG_CONFIG_HOME": str(xdg), "GIT_CONFIG_NOSYSTEM": "1"}):
+            repo, cell = self.cell("claude")
+            env = self.agent_env(cell)
+            self.assertEqual(env["GIT_CONFIG_SYSTEM"], str(cell.gitconfig_system))
+            self.assertNotIn("GIT_CONFIG_NOSYSTEM", env)
+            self.assertEqual(env["XDG_CONFIG_HOME"], str(cell.xdg))
+            (repo / "app.py").write_text("def f(x):\n    return eval(x)  # VULN_MARKER\n")
+            blocked = run_cmd(repo, env, "git add -A && git commit -m x")
+        for p in sentinels.values():
+            self.assertEqual(p.read_text(), "[core]\n\tsentinel = host\n")
+        self.assertEqual(list(xdg.iterdir()), [])
+        self.assertIn(str(cell.home / ".corridor" / "hooks"), cell.gitconfig_system.read_text())
+        self.assertTrue((cell.xdg / "husky" / "init.sh").is_file())
+        self.assertTrue(cell.install_ok, cell.install_reason)
+        self.assertIn("hooks/pre-commit", cell.install_reason)
+        # the global ~/.corridor/hooks (via the cycle's system config) is the hook git ran
+        self.assertEqual(blocked["exit_code"], 1)
+        self.assertIn("Corridor found 1 security issue(s)", blocked["output"])
+
+    def test_project_lock_is_held_for_the_cycle(self):
+        with mock.patch.object(_corridor, "LOCK_DIR", str(Path(self.tmp) / "locks")):
+            repo, cell = self.cell()
+            self.assertIn("ase-inst", _corridor._HELD_LOCKS)
+            code = ("import fcntl,sys; f=open(sys.argv[1],'a')\n"
+                    "try:\n fcntl.flock(f, fcntl.LOCK_EX|fcntl.LOCK_NB); print('got')\n"
+                    "except BlockingIOError:\n print('busy')")
+            lock = str(Path(self.tmp) / "locks" / "ase-inst.lock")
+            probe = lambda: subprocess.run([sys.executable, "-c", code, lock], capture_output=True,
+                                           text=True).stdout.strip()
+            self.assertEqual(probe(), "busy")
+            cell.finish([], "app.py")
+            self.assertEqual(probe(), "got")
+            self.assertNotIn("ase-inst", _corridor._HELD_LOCKS)
+
+    def test_project_names_follow_make_repos(self):
+        for inst, want in (("Capsa_CVE-2022-21675", "ase-capsa-cve-2022-21675"),
+                           ("zju-CVE-2021-4089", "ase-zju-cve-2021-4089")):
+            self.assertEqual(_corridor.ase_name(inst), want)
+            self.assertEqual(_corridor.project_for_repo(f"/out/{inst}_cycle3"), want)
 
     def test_no_verify_is_a_bypass(self):
         repo, cell = self.cell()
@@ -315,9 +515,11 @@ class DeveloperTests(Base):
         cell = _corridor.CorridorCell("corridor", "developer", "claude", repo, self.dist, LOG)
         cell.prepare()
         self.assertTrue((cell.corridor / "plugin-claude" / "hooks" / "hooks.json").is_file())
+        settings = json.loads((cell.home / ".claude" / "settings.json").read_text())
+        self.assertTrue(settings["enabledPlugins"]["corridor@corridor-plugins"])
         opts = cell.claude_options()
         self.assertEqual(opts["setting_sources"], ["user"])
-        self.assertEqual(opts["plugins"], [{"type": "local", "path": str(cell.corridor / "plugin-claude")}])
+        self.assertNotIn("plugins", opts)              # Corridor registered its own plugin
         self.assertTrue(opts["include_hook_events"])
         self.assertNotIn("extra_allowed_tools", opts)     # no commit sentence, no git
 
@@ -330,7 +532,8 @@ class DeveloperTests(Base):
 
         def obj(cls, **kw):
             o = cls(); o.__dict__.update(kw); return o
-        col.feed(obj(AssistantMessage, content=[obj(ToolUseBlock, id="t1", name="mcp__corridor__analyzePlan",
+        col.feed(obj(AssistantMessage, content=[obj(ToolUseBlock, id="t1",
+                                                    name="mcp__plugin_corridor_corridor__analyzePlan",
                                                     input={"plan": "complete f"})]))
         col.feed(obj(UserMessage, content=[obj(ToolResultBlock, tool_use_id="t1",
                                                content=[{"type": "text", "text": "guardrails: validate input"}],
@@ -351,11 +554,46 @@ class DeveloperTests(Base):
 
     def test_no_hook_fired_is_unreviewed(self):
         repo = make_cycle(self.tmp)
-        cell = _corridor.CorridorCell("corridor", "developer", "codex", repo, self.dist, LOG)
+        cell = _corridor.CorridorCell("corridor", "developer", "claude", repo, self.dist, LOG)
         cell.prepare()
         review = cell.finish([], "app.py")
-        self.assertFalse(review["reviewed"])
+        self.assertFalse(review["reviewed"] or review["valid"])
         self.assertEqual(review["reason"], "no Corridor hook fired")
+
+    def test_claude_without_the_plugin_enabled_is_not_installed(self):
+        repo = make_cycle(self.tmp)
+        cell = _corridor.CorridorCell("corridor", "developer", "claude", repo, self.dist, LOG)
+        with mock.patch.dict(os.environ, {"FAKE_NO_PLUGIN": "1"}):
+            with self.assertRaises(_corridor.CorridorError):
+                cell.prepare()
+        self.assertIn("plugin not enabled", json.loads(
+            (cell.state / "corridor_review.json").read_text())["reason"])
+
+    def test_codex_merges_corridor_mcp_into_the_fixed_config(self):
+        from bench.agent import _leobench
+        repo = make_cycle(self.tmp)
+        codex_home = Path(self.tmp) / "stage" / "_codex_home"
+        codex_home.mkdir(parents=True)
+        (codex_home / "config.toml").write_text(_leobench.CODEX_RUN_CONFIG)
+        cell = _corridor.CorridorCell("corridor", "developer", "codex", repo, self.dist, LOG)
+        cell.prepare({"CODEX_HOME": str(codex_home)})
+        cfg = (codex_home / "config.toml").read_text()
+        self.assertTrue(cfg.startswith(_leobench.CODEX_RUN_CONFIG))
+        self.assertIn("[mcp_servers.corridor]", cfg)
+        self.assertIn("[mcp_servers.corridor.http_headers]", cfg)
+        self.assertIn("<corridor>", (codex_home / "AGENTS.md").read_text())
+        self.assertNotIn("fake-access-token", (cell.state / "corridor_install.log").read_text())
+        env = self.agent_env(cell)
+        self.assertEqual(env["CODEX_HOME"], str(codex_home))
+        self.assertNotIn("--dangerously-bypass-hook-trust", cell.codex_args())
+        review = cell.finish([], "app.py")
+        # valid without any hook (Codex has none); reviewed only if analyzePlan was called
+        self.assertTrue(review["installed"] and review["valid"])
+        self.assertFalse(review["reviewed"])
+        self.assertIn("no Codex hooks", review["reason"])
+        for toml in (codex_home / "config.toml", cell.home / ".codex" / "config.toml"):
+            self.assertNotIn("fake-access-token", toml.read_text())
+            self.assertIn('Authorization = "<REDACTED>"', toml.read_text())
 
     def test_codex_developer_plan_call_from_json_events(self):
         jsonl = "\n".join(json.dumps(e) for e in [
@@ -398,7 +636,11 @@ class CommitControlTests(Base):
         (repo / "app.py").write_text("def f(x):\n    return int(x) + 1\n")
         events = [run_cmd(repo, env, "git commit -am done")]
         review = cell.finish(events, "app.py")
-        self.assertEqual(review, {"mode": "commit-control", "committed": True, "restored_original": False})
+        self.assertEqual(review, {"mode": "commit-control", "committed": True, "project_repo": "ase-inst",
+                                  "restored_original": False})
+        self.assertEqual(git(repo, "remote", "get-url", "origin").stdout.strip(),
+                         "https://github.com/leotrace-benchmarking/ase-inst.git")
+        self.assertNotIn("inst", " ".join(_corridor._HELD_LOCKS))   # no Corridor, no lock
         self.assertTrue((cell.state / "commit_control.json").is_file())
         self.assertFalse((cell.state / "corridor_review.json").exists())
 
@@ -515,7 +757,9 @@ class ClaudeAdapterCorridorTests(Base):
         agent, client = self.run_adapter("long-running")
         o = client.options
         self.assertEqual(o.allowed_tools, ["Read", "Write", "Edit", "Grep", "Bash(git:*)"])
-        self.assertEqual(o.setting_sources, [])
+        # the cell HOME's user settings: Corridor's Claude Code hooks from claude-setup.sh
+        self.assertEqual(o.setting_sources, ["user"])
+        self.assertTrue(o.include_hook_events)
         self.assertEqual(o.plugins, [])
         self.assertEqual(o.env["HOME"], str(agent._corridor.home))
         self.assertNotIn(_corridor.API_KEY_ENV, o.env)
@@ -529,7 +773,7 @@ class ClaudeAdapterCorridorTests(Base):
         self.assertEqual(o.allowed_tools, ["Read", "Write", "Edit", "Grep"])
         self.assertEqual(o.setting_sources, ["user"])
         self.assertTrue(o.include_hook_events)
-        self.assertEqual(o.plugins, [{"type": "local", "path": str(agent._corridor.corridor / "plugin-claude")}])
+        self.assertEqual(o.plugins, [])                # registered by Corridor in user settings
         self.assertNotIn(_corridor.COMMIT_INSTRUCTION, client.prompt)
         review = json.loads((agent._corridor.state / "corridor_review.json").read_text())
         self.assertFalse(review["reviewed"])          # no hook event in the fake stream
