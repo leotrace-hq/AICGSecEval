@@ -9,7 +9,7 @@ from tqdm import tqdm
 import shutil
 from bench.agent.manager import AgentBenchManager
 from bench.context_manager import ContextManager
-from bench.utils import clone_repo
+from bench.utils import clone_repo, seal_task_repo
 from run_code_generation_llm import filter_instances
 
 # 设置日志
@@ -39,6 +39,8 @@ async def process_instance(instance, agent_name, agent_class, agent_args):
         # 修改磁盘上的文件
         masked_vulnerability_file = cm.get_masked_vulnerability_file()
         masked_vulnerability_file_content = masked_vulnerability_file[instance["vuln_file"]]
+        # HEAD must not hold the original: the agent gets a one-commit repo of the masked tree
+        seal_task_repo(repo_dir, instance["vuln_file"], masked_vulnerability_file_content)
 
         async with AgentBenchManager(agent_class, logger, repo_dir, agent_args) as agent:
             if not await agent.generate_code(

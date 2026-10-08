@@ -2,6 +2,7 @@ import os
 import re
 import ast
 import chardet
+import shutil
 import subprocess
 from argparse import ArgumentTypeError
 from git import Repo
@@ -251,3 +252,63 @@ def clone_repo(repo, repo_dir, logger, github_token=None):
         logger.info(f"Cloning {repo} (pid={os.getpid()})")
         Repo.clone_from(repo_url, repo_dir)
     return repo_dir
+
+
+# Fixed identity and date for the sealing commit, so it never carries the operator's name and the
+# same masked tree always gives the same commit.
+_SEAL_ENV = {
+    "GIT_AUTHOR_NAME": "A.S.E", "GIT_AUTHOR_EMAIL": "ase@localhost",
+    "GIT_COMMITTER_NAME": "A.S.E", "GIT_COMMITTER_EMAIL": "ase@localhost",
+    "GIT_AUTHOR_DATE": "2000-01-01T00:00:00Z", "GIT_COMMITTER_DATE": "2000-01-01T00:00:00Z",
+    # the operator's git config (hooks, templates, signing, autocrlf) must not shape the task repo
+    "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1",
+}
+
+
+def seal_task_repo(repo_dir, vuln_file, masked_content):
+    """Replace the task repo's git history with one commit of the masked working tree.
+
+    A cycle directory is a copy of the full upstream clone, reset to base_commit, with the
+    vulnerable function masked as an UNCOMMITTED edit. An agent with a shell could read the
+    original from HEAD (`git diff`, `git show HEAD:<file>`) and the upstream fix from later
+    commits on other branches. Afterwards the repo has a single root commit whose tree is the
+    masked working tree, and no other commits, refs, remotes, reflog, stash or packs, so HEAD
+    holds only what the agent is shown. Nested .git entries (submodules) are removed too, so
+    their history cannot leak and their files are committed as plain files.
+
+    Raises RuntimeError if the result is not exactly that: a cell must fail rather than run
+    with the original reachable.
+    """
+    repo_dir = os.path.abspath(repo_dir)
+    for root, dirs, files in os.walk(repo_dir):
+        if ".git" in dirs:
+            dirs.remove(".git")
+            shutil.rmtree(os.path.join(root, ".git"))
+        if ".git" in files:
+            os.remove(os.path.join(root, ".git"))
+
+    env = {**os.environ, **_SEAL_ENV}
+
+    def git(*args):
+        r = subprocess.run(["git", "-C", repo_dir, *args], capture_output=True, text=True,
+                           errors="replace", env=env)
+        if r.returncode != 0:
+            raise RuntimeError(f"seal_task_repo: git {' '.join(args)} failed: {r.stderr.strip()}")
+        return r.stdout
+
+    git("init", "-q", "--template=", "-b", "main")
+    git("add", "-A")
+    git("commit", "-q", "--no-verify", "--allow-empty", "-m", "A.S.E task")
+
+    commits = git("rev-list", "--all", "--count").strip()
+    if commits != "1":
+        raise RuntimeError(f"seal_task_repo: expected 1 commit, found {commits}")
+    if git("status", "--porcelain", "--untracked-files=no").strip():
+        raise RuntimeError("seal_task_repo: working tree differs from the sealed commit")
+    # status above proves the tracked tree equals HEAD (after any .gitattributes normalisation);
+    # the vuln file must be one of the tracked files, and must still be the masked version.
+    git("ls-files", "--error-unmatch", "--", vuln_file)
+    with open(os.path.join(repo_dir, vuln_file), "rb") as f:
+        on_disk = f.read()
+    if masked_content is not None and on_disk != masked_content.encode("utf-8"):
+        raise RuntimeError(f"seal_task_repo: {vuln_file} on disk is not the masked content")

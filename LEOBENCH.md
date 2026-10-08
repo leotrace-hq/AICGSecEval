@@ -14,6 +14,10 @@ export LEOPREVENT_HOME=/path/to/leoprevent
 <leobench>/ase/scripts/claude_windows.sh      # etc
 ```
 
+Each cycle's repo is sealed before the agent starts (`bench/utils.py` `seal_task_repo`): its git
+history is replaced by one commit of the masked tree, so `HEAD` cannot show the masked original and
+no later commit can show the upstream fix. Test: `python -m unittest tests/test_seal_task_repo.py`.
+
 Outputs are still written under this checkout, since verification needs the task images and the
 cloned repositories.
 
