@@ -187,7 +187,17 @@ class CodexAgentBench(AgentBenchBase):
             return self._run(args, stdout)
         finally:
             text = b"".join(stdout).decode(errors="replace")
-            review = self._corridor.finish(_corridor.codex_events(text), file_path)
+            # Codex's own rollout under CODEX_HOME/sessions is the transcript (it records MCP calls
+            # made from the exec tool); the --json stdout events are the fallback.
+            # Without CODEX_HOME Codex uses $HOME/.codex, which is the fresh cell home only on the
+            # corridor arm; commit-control's HOME is the operator's, never read.
+            env = self._env or {}
+            codex_home = env.get("CODEX_HOME") or (
+                os.path.join(env["HOME"], ".codex")
+                if self._arm == "corridor" and env.get("HOME") else None)
+            events, source = self._corridor.codex_events(codex_home, text)
+            self.logger.info(f"{self._arm} transcript: {source} ({len(events)} events)")
+            review = self._corridor.finish(events, file_path)
             self.logger.info(f"{self._arm} record: {review.get('reason') or review}")
 
     def _run(self, args, stdout_sink=None):

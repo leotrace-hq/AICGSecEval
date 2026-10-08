@@ -47,6 +47,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 COMMIT_INSTRUCTION = "When you are done, commit your changes to the git repository."
@@ -558,6 +559,118 @@ def codex_events(jsonl_text):
     return events
 
 
+def _read_jsonl(path):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return []
+    out = []
+    for line in lines:
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            out.append(json.loads(line))
+        except ValueError:
+            continue
+    return out
+
+
+def _session_files(root, pattern, since=None):
+    """Session logs under `root` matching `pattern`, oldest first; with `since`, only those
+    written to at or after that time (a shared directory never feeds another cycle's log)."""
+    root = Path(root) if root else None
+    if not root or not root.is_dir():
+        return []
+    files = [p for p in root.glob(pattern) if p.is_file()]
+    if since is not None:
+        files = [p for p in files if p.stat().st_mtime >= since]
+    return sorted(files, key=lambda p: (p.stat().st_mtime, str(p)))
+
+
+def codex_rollout_events(paths):
+    """Normalized events from Codex's own session rollouts (CODEX_HOME/sessions/**/*.jsonl).
+
+    PILOT-CONFIRMED (2026-10-08, Codex 0.160.1): every command and MCP call the agent made is an
+    `event_msg` payload `{"type": "item_completed", "item": {...}}`: CommandExecution {command
+    argv, aggregated_output, exit_code} and McpToolCall {server, tool, arguments, status, result}.
+    Sol calls MCP tools from its scripted `exec` tool (`tools.mcp__corridor__analyzePlan(...)`),
+    and that call is recorded ONLY as such an McpToolCall item. Only these items are read (never
+    the exec script or its output as well), so no call is counted twice."""
+    events = []
+    for path in paths:
+        for e in _read_jsonl(path):
+            p = e.get("payload") if isinstance(e, dict) else None
+            if not isinstance(p, dict) or p.get("type") != "item_completed":
+                continue
+            item = p.get("item")
+            if not isinstance(item, dict):
+                continue
+            t = item.get("type")
+            if t == "CommandExecution":
+                cmd = item.get("command")
+                if isinstance(cmd, list):
+                    words = [str(w) for w in cmd]
+                    cmd = (words[2] if len(words) >= 3 and os.path.basename(words[0]) in ("bash", "sh", "zsh")
+                           and words[1] in ("-c", "-lc") else shlex.join(words))
+                out = item.get("aggregated_output")
+                if out is None:
+                    out = (item.get("stdout") or "") + (item.get("stderr") or "")
+                events.append({"kind": "command", "command": str(cmd or ""), "output": str(out),
+                               "exit_code": item.get("exit_code")})
+            elif t == "McpToolCall":
+                args = item.get("arguments")
+                result = item.get("result")
+                if isinstance(result, dict) and isinstance(result.get("content"), list):
+                    output = _block_text(result["content"])
+                else:
+                    output = json.dumps(result)[:4000] if result is not None else ""
+                events.append({"kind": "mcp", "server": str(item.get("server") or ""),
+                               "tool": str(item.get("tool") or ""),
+                               "input": args if isinstance(args, str) else json.dumps(args, default=str),
+                               "output": output if item.get("status", "completed") == "completed" else "",
+                               "status": item.get("status")})
+    return events
+
+
+# Corridor's Claude Code hook commands. PILOT-CONFIRMED (2026-10-08, v0.0.87): the developer
+# plugin runs `${CLAUDE_PLUGIN_ROOT}/scripts/corridor-hooks-wrapper <handler>`, the long-running
+# setup `~/.claude/hooks/corridor/<handler>`.
+CORRIDOR_HOOK_COMMAND_RE = re.compile(r"corridor-hooks-wrapper|/hooks/corridor/")
+
+
+def _int_or_none(v):
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def claude_session_hook_runs(paths):
+    """Corridor hook runs Claude Code recorded in its session logs, as normalized hook events.
+
+    PILOT-CONFIRMED (2026-10-08, v0.0.87): Corridor's hooks log nothing under the cell's
+    ~/.corridor, but Claude's session jsonl records every hook run as an attachment
+    `{"type": "hook_success" | "hook_*", "hookEvent", "hookName", "command", "exitCode" (a
+    string), "stdout", "stderr"}`. Only attachments whose command is Corridor's count."""
+    runs = []
+    for path in paths:
+        for e in _read_jsonl(path):
+            a = e.get("attachment") if isinstance(e, dict) else None
+            if not isinstance(a, dict):
+                continue
+            if not (str(a.get("type", "")).startswith("hook_") and a.get("hookEvent")
+                    and CORRIDOR_HOOK_COMMAND_RE.search(str(a.get("command") or ""))):
+                continue
+            runs.append({"kind": "hook", "phase": "hook_response", "source": "session_log",
+                         "event": str(a.get("hookEvent")), "name": a.get("hookName"),
+                         "output": str(a.get("stdout") or ""),
+                         "stderr": str(a.get("stderr") or a.get("blockingError") or ""),
+                         "exit_code": _int_or_none(a.get("exitCode")), "outcome": a.get("type")})
+    return runs
+
+
 # --- classification ---------------------------------------------------------------------------
 
 _GIT_COMMIT = re.compile(r"(?:^|[\s;&|()])git(?:\s+-[cC]\s+\S+)*\s+commit(?![\w-])")
@@ -574,11 +687,38 @@ def is_git_commit(cmd):
     return bool(_GIT_COMMIT.search(" " + cmd))
 
 
+# git's own options that take the next word as their value (`git -c k=v`, `git -C dir`, ...).
+_GIT_VALUE_OPTS = {"-c", "-C", "--git-dir", "--work-tree", "--namespace", "--exec-path",
+                   "--config-env", "--super-prefix"}
+
+
+def _git_subcommand(words):
+    """(index of the git word, index of its subcommand) in a word list, skipping git's own
+    options (`-c k=v`, `-C dir`, `--literal-pathspecs`, ...); None when there is no git call."""
+    g = next((i for i, w in enumerate(words) if os.path.basename(w) == "git"), None)
+    if g is None:
+        return None
+    i = g + 1
+    while i < len(words):
+        w = words[i]
+        if w in _GIT_VALUE_OPTS:
+            i += 2
+        elif w.startswith("-"):
+            i += 1
+        else:
+            return g, i
+    return None
+
+
 def commit_bypasses_hook(cmd):
-    """Does this command run `git commit` without the pre-commit hook (--no-verify / -n), or
-    switch the hook off (core.hooksPath override, removing or disabling the hook file)?"""
-    if re.search(r"core\.hookspath", cmd, re.I):
-        return True
+    """Does this command run `git commit` without the pre-commit hook (--no-verify / -n, or a
+    core.hooksPath override on that commit), or disable the hook file (rm / mv / chmod -x)?
+
+    Only a call whose git SUBCOMMAND is `commit` can bypass. PILOT-CONFIRMED (2026-10-08):
+    Claude Code runs its own internal git (status, snapshot commit-tree, ...) with
+    `-c core.hooksPath=/dev/null`, and agents read the setting (`git config --get
+    core.hooksPath`); neither is a bypass. A persistent hooksPath change is caught by
+    git_facts' hook_tampered (the hooksPath at the end differs from the start)."""
     if re.search(r"(?:\brm\b|\bmv\b|chmod\s+-x).*hooks/pre-commit", cmd):
         return True
     for part in _split_commands(cmd):
@@ -586,9 +726,14 @@ def commit_bypasses_hook(cmd):
             words = shlex.split(part)
         except ValueError:
             words = part.split()
-        if "git" not in words or "commit" not in words[words.index("git"):]:
+        found = _git_subcommand(words)
+        if not found or words[found[1]] != "commit":
             continue
-        rest = words[words.index("commit", words.index("git")) + 1:]
+        # The override counts only on this commit: `git -c core.hooksPath=... commit`, or an
+        # environment prefix such as GIT_CONFIG_KEY_0=core.hooksPath before the git word.
+        if any("core.hookspath" in w.lower() for w in words[:found[1]]):
+            return True
+        rest = words[found[1] + 1:]
         skip = False
         for w in rest:
             if skip:
@@ -618,8 +763,8 @@ def _hook_delivered(ev):
     if ev.get("phase") != "hook_response":
         return ""
     out = (ev.get("output") or "").strip()
-    if ev.get("exit_code") == 2:
-        return out or "(blocked)"
+    if _int_or_none(ev.get("exit_code")) == 2:
+        return (ev.get("stderr") or "").strip() or out or "(blocked)"
     try:
         data = json.loads(out) if out.startswith("{") else None
     except ValueError:
@@ -637,6 +782,11 @@ def parse_scan_output(text):
     (a "Corridor found N" block; found = N, findings = {id, severity, title, cwe, location}),
     still_open, and failed scans with their error."""
     t = _ANSI_RE.sub("", text or "")
+    # PILOT-CONFIRMED (2026-10-08): Codex's event log can carry the hook output JSON-escaped
+    # (literal `\n`), which the line-anchored finding patterns never match (Sol's block was
+    # counted but its finding detail came back empty). Unescape when Corridor's text is escaped.
+    if "\\n" in t and re.search(r"Corridor found|still open from prior scan|Project not found", t):
+        t = t.replace("\\n", "\n").replace('\\"', '"')
     out = {"blocked": False, "still_open": bool(SCAN_STILL_OPEN_RE.search(t)), "failed": 0,
            "error": None, "found": 0, "findings": []}
     m = SCAN_BLOCK_RE.search(t)
@@ -720,8 +870,12 @@ def is_valid(review):
     return not _only_failed_scans(review)
 
 
-def classify(mode, events, logs_text="", git_facts=None, agent=None, flags=None):
-    """corridor_review counts from the transcript events, the cell's Corridor logs and git."""
+def classify(mode, events, logs_text="", git_facts=None, agent=None, flags=None, session_hooks=None):
+    """corridor_review counts from the transcript events, the cell's Corridor logs and git.
+
+    session_hooks: Corridor hook runs from Claude's session log (claude_session_hook_runs). When
+    there are any they are the hook evidence and the SDK's hook events are not counted as well;
+    otherwise the SDK's hook_response events, then Corridor's own log lines, are the fallback."""
     g = git_facts or {}
     review = empty_review(mode, agent)
     review["bypassed"] = bool(g.get("hook_tampered"))
@@ -737,7 +891,8 @@ def classify(mode, events, logs_text="", git_facts=None, agent=None, flags=None)
             and "corridor" in e["server"].lower()]
     review["plan_calls"] = len(plan)
     plan_text = [e for e in plan if (e.get("output") or "").strip()]
-    hooks = [e for e in events if e["kind"] == "hook" and e.get("phase") == "hook_response"]
+    hooks = list(session_hooks or []) or [e for e in events if e["kind"] == "hook"
+                                          and e.get("phase") == "hook_response"]
     review["hook_fires"] = len(hooks) or len(DEV_HOOK_LOG_RE.findall(logs_text or ""))
     fp, fixed, later = closures(events)
     review["fp_closed"], review["fixed_closed"] = fp, fixed
@@ -856,6 +1011,8 @@ class CorridorCell:
         self.install_ok = None
         self.install_reason = ""
         self.provenance = None
+        self.started = None            # when prepare() began: session logs older than this are not the cycle's
+        self.claude_config_dir = None  # CLAUDE_CONFIG_DIR in the agent's env, if the operator set one
 
     def _log(self, msg):
         if self.logger:
@@ -870,6 +1027,7 @@ class CorridorCell:
         if self.state.exists():
             shutil.rmtree(self.state)
         self.state.mkdir(parents=True)
+        self.started = time.time()
         # The cycle's only git config besides the repo's: a benchmark identity, no signing, and no
         # credential helper (the origin below must never be pushable with the operator's login).
         self.gitconfig.write_text(
@@ -1063,6 +1221,7 @@ class CorridorCell:
         env.pop(API_KEY_ENV, None)
         env.pop("GIT_CONFIG_NOSYSTEM", None)
         env.update(self._isolation_env())
+        self.claude_config_dir = env.get("CLAUDE_CONFIG_DIR") or None
         if self.arm == "corridor":
             env["CORRIDOR_CLOUD_AGENT"] = self.agent   # PILOT: does the scan read it at commit time?
             env.pop("CORRIDOR_HOOK_BASES", None)
@@ -1107,6 +1266,40 @@ class CorridorCell:
             args += ["--json", "-c", "sandbox_workspace_write.network_access=true",
                      "--add-dir", os.path.realpath(self.state)]
         return args
+
+    # session logs ---------------------------------------------------------------------------
+    def claude_session_logs(self):
+        """The Claude session jsonl files of this cycle.
+
+        The SDK spawns the Claude Code CLI, which writes its session to
+        $CLAUDE_CONFIG_DIR/projects/<cwd sanitized>/<session>.jsonl, else to
+        $HOME/.claude/projects/...; on the corridor arm HOME is the cell home, fresh per cycle.
+        A CLAUDE_CONFIG_DIR from the operator's environment is shared, so there only this repo's
+        project directory, written to since prepare(), is read."""
+        if self.claude_config_dir:
+            want = re.sub(r"[^a-zA-Z0-9]", "-", os.path.realpath(self.repo))[:200]
+            return [p for p in _session_files(Path(self.claude_config_dir) / "projects", "*/*.jsonl",
+                                              self.started)
+                    if p.parent.name[:200] == want]
+        return _session_files(self.home / ".claude" / "projects", "*/*.jsonl", self.started)
+
+    def codex_events(self, codex_home, json_stdout=""):
+        """(events, source) for a Codex cycle: the rollouts under CODEX_HOME/sessions written
+        since prepare() when there are any (PILOT-CONFIRMED (2026-10-08, Codex 0.160.1): the
+        record that names MCP calls made from the exec tool), else the `codex exec --json` stdout.
+        The rollouts are copied into the cell (a staged CODEX_HOME is deleted at stop)."""
+        rollouts = _session_files(Path(codex_home) / "sessions" if codex_home else None,
+                                  "**/*.jsonl", self.started)
+        if rollouts:
+            dest = self.state / "codex-sessions"
+            dest.mkdir(parents=True, exist_ok=True)
+            for p in rollouts:
+                try:
+                    shutil.copy2(p, dest / p.name)
+                except OSError:
+                    pass
+            return codex_rollout_events(rollouts), "rollout"
+        return codex_events(json_stdout), "json-stdout"
 
     # record ---------------------------------------------------------------------------------
     def corridor_logs(self):
@@ -1168,7 +1361,10 @@ class CorridorCell:
                           "project_repo": self.project_repo, "restored_original": restored}
             else:
                 flags = config_env_flags(self.corridor / "config.env")
-                review = classify(self.mode, events, self.corridor_logs(), facts, self.agent, flags)
+                session_hooks = (claude_session_hook_runs(self.claude_session_logs())
+                                 if self.agent == "claude" else None)
+                review = classify(self.mode, events, self.corridor_logs(), facts, self.agent, flags,
+                                  session_hooks)
                 review["project_repo"] = self.project_repo
                 review["restored_original"] = restored
                 review["tool"] = self.tool()
