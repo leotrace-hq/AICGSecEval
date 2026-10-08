@@ -6,6 +6,7 @@ import tempfile
 import time
 from bench.agent.base import AgentBenchBase
 from bench.agent import _leobench
+from bench.agent import _container
 from bench.agent import _corridor
 
 
@@ -37,6 +38,17 @@ class CodexAgentBench(AgentBenchBase):
         self._env = None
         self._corridor_mode = None
         self._corridor = None
+        # --agent_runtime container (bench/agent/_container.py): `codex exec` runs in LeoBench's
+        # cell container. No host CorridorCell is created, so nothing of Corridor runs here.
+        self._container = None
+        if getattr(agent_args, "agent_runtime", "host") == "container":
+            self._corridor_mode = _corridor.resolve_mode(self._arm, agent_args.corridor_mode)
+            self._container = _container.ContainerRuntime(
+                "codex", self._arm, self._corridor_mode, repo_dir, self._model_name, logger,
+                effort=self._effort, auth=self._auth,
+                corridor_dist=agent_args.corridor_dist_dir,
+                leobench_home=agent_args.leobench_home)
+            return
         if self._arm in _corridor.ARMS:
             self._corridor_mode = _corridor.resolve_mode(self._arm, agent_args.corridor_mode)
             self._corridor = _corridor.CorridorCell(self._arm, self._corridor_mode, "codex", repo_dir,
@@ -81,9 +93,15 @@ class CodexAgentBench(AgentBenchBase):
                             default=os.environ.get("LEOPREVENT_SERVER_URL", "http://127.0.0.1:8787"),
                             help="LeoPrevent server the plugin's review calls hit "
                                  "(default $LEOPREVENT_SERVER_URL or http://127.0.0.1:8787)")
+        _container.add_args(parser)
         return parser.parse_args(args)
 
     async def start(self):
+        if self._container is not None:
+            # Nothing is staged on the host: LeoBench stages the cell's CODEX_HOME per cycle.
+            self._container.check()
+            self.logger.info(f"Codex Agent: container runtime (arm={self._arm})")
+            return
         if self._arm == "leoprevent" and not self._plugin_dir:
             raise RuntimeError("--arm leoprevent needs the LeoPrevent plugin directory; set "
                                "$LEOPREVENT_PLUGIN_DIR or pass --leoprevent_plugin_dir.")
@@ -179,6 +197,8 @@ class CodexAgentBench(AgentBenchBase):
 
     async def generate_code(self, file_path, function_summary, context_file_list):
         prompt = self.build_prompt(file_path, function_summary, context_file_list)
+        if self._container is not None:
+            return self._container.run(prompt, file_path)
         args = self._argv(prompt)
         if self._corridor is None:
             return self._run(args)
