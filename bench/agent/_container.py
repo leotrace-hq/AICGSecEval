@@ -46,6 +46,29 @@ class ContainerRuntimeError(RuntimeError):
     pass
 
 
+# Circuit breaker. On 2026-10-08 Codex's workspace credits ran out and 209 cycles failed in a
+# row, each in ~6 s, with nothing stopping the run (A.S.E catches every Exception per cycle and
+# moves on). A rate limit, or this many non-ok cycles in a row, now ends the process instead:
+# SystemExit is not an Exception, so it passes A.S.E's per-cycle handler, and the cycle is not
+# recorded, so a resume redoes it.
+MAX_CONSECUTIVE_FAILURES = 3
+STOP_EXIT_CODE = 75
+_consecutive_failures = 0
+
+
+def _breaker(status):
+    global _consecutive_failures
+    if status in ("ok", "empty"):
+        _consecutive_failures = 0
+        return None
+    _consecutive_failures += 1
+    if status == "rate-limited":
+        return "agent rate-limited or out of credits"
+    if _consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+        return f"{_consecutive_failures} non-ok agent cycles in a row (last: {status})"
+    return None
+
+
 def leobench_entry(leobench_home):
     """harness/container_agent.py in the LeoBench checkout ($LEOBENCH_HOME), or raise."""
     if not leobench_home:
@@ -175,6 +198,10 @@ class ContainerRuntime:
                                "restored_original": False, "runtime": "container",
                                "reason": f"not run: {res['error']}"})
                 self._write("corridor_review.json", review)
+            stop = _breaker("not-run")
+            if stop:
+                self.logger.error(f"LEOBENCH STOP: {stop}: {res['error']}; ending the run")
+                raise SystemExit(STOP_EXIT_CODE)
             raise ContainerRuntimeError(f"container agent step failed: {res['error']}")
         restored = _corridor.restored_original(self.repo, base, vuln_file)
         extra = {"restored_original": restored, "runtime": "container",
@@ -197,6 +224,10 @@ class ContainerRuntime:
             self._write("commit_control.json", rec)
         self.logger.info(f"container agent status={res.get('status')} rc={res.get('returncode')} "
                          f"elapsed={res.get('elapsed_s')}s")
+        stop = _breaker(res.get("status"))
+        if stop:
+            self.logger.error(f"LEOBENCH STOP: {stop}; ending the run, resume when fixed")
+            raise SystemExit(STOP_EXIT_CODE)
         return res.get("returncode") == 0
 
     def _write(self, name, record):

@@ -107,6 +107,7 @@ class _NoHostCorridor:
                      "set LEOBENCH_HOME to a LeoBench checkout with harness/container_agent.py")
 class ContainerRuntimeFakeDocker(unittest.TestCase):
     def setUp(self):
+        _container._consecutive_failures = 0
         self.tmp = Path(os.path.realpath(tempfile.mkdtemp(prefix="ase-container-")))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
         bindir = self.tmp / "bin"
@@ -209,6 +210,35 @@ class ContainerRuntimeFakeDocker(unittest.TestCase):
         review = json.loads((_corridor.state_dir_for(repo) / "corridor_review.json").read_text())
         self.assertFalse(review["valid"], review)
         self.assertEqual(review["reason"], "agent agent-failed (rc=1)")
+
+    def _fake_status(self, status):
+        real_run = subprocess.run
+
+        def fake_run(cmd, *a, **kw):
+            if "--result" not in cmd:
+                return real_run(cmd, *a, **kw)
+            Path(cmd[cmd.index("--result") + 1]).write_text(json.dumps(
+                {"status": status, "returncode": 0 if status == "ok" else 1}))
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+        return mock.patch.object(_container.subprocess, "run", fake_run)
+
+    def test_rate_limit_stops_the_run(self):
+        # 2026-10-08: 209 Codex cycles failed in a row on exhausted credits and the run went on.
+        repo = make_cycle(self.tmp, "codex__codex_raw_sealed", "Capsa_CVE-2022-21675_cycle1")
+        with self._fake_status("rate-limited"), self.assertRaises(SystemExit) as cm:
+            run_adapter("codex", repo, adapter_args("codex", "raw", None))
+        self.assertEqual(cm.exception.code, _container.STOP_EXIT_CODE)
+
+    def test_consecutive_failures_stop_the_run(self):
+        statuses = ["agent-failed", "ok", "agent-failed", "agent-failed"]
+        for i, st in enumerate(statuses):
+            repo = make_cycle(self.tmp, "codex__codex_raw_sealed", f"Capsa_CVE-2022-21675_cycle{i + 1}")
+            with self._fake_status(st):
+                ok = run_adapter("codex", repo, adapter_args("codex", "raw", None))[1]
+            self.assertEqual(ok, st == "ok")       # a success resets the count
+        repo = make_cycle(self.tmp, "codex__codex_raw_sealed", "Capsa_CVE-2022-21675_cycle9")
+        with self._fake_status("timed-out"), self.assertRaises(SystemExit):
+            run_adapter("codex", repo, adapter_args("codex", "raw", None))
 
     def test_claude_corridor_long_running_record(self):
         dist = self.staged_dist()
