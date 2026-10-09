@@ -3,7 +3,8 @@
 The default runtime (`host`) is the published one: the agent runs on this machine, Claude through
 the Claude Agent SDK and Codex as `codex exec` in its workspace-write sandbox, and the corridor
 arm runs Corridor on the host (bench/agent/_corridor.py, CorridorCell). The container runtime is
-for the new A.S.E arms (sealed raw, corridor long-running and developer, commit-control): the
+for the new A.S.E arms (sealed raw, corridor long-running and developer, commit-control, sealed
+leoprevent): the
 fork still prepares the cycle on the host exactly as before (copy, mask, seal, prompt), then
 LeoBench's harness/container_agent.py runs the agent step inside the `leobench-cell` container,
 the same machinery LeoBench's synthetic harness uses, and the fork continues as before (the
@@ -20,12 +21,22 @@ Records, beside the cycle dir in `_security/<cycle>/` (the paths LeoBench's A.S.
                          keys) plus restored_original (computed here, against the sealed base),
                          tool (provenance) and runtime
   commit_control.json    {mode, committed, project_repo} plus restored_original and runtime
+  leoprevent_review.json LeoBench's record of the plugin client log (reviewed, signal, reason,
+                         review_count, reviews, verdicts, rule_ids, fired, valid) plus
+                         restored_original, tool (provenance) and runtime; LeoBench also copies
+                         the client log to leoprevent_client.log (and keeps _leoprevent/)
   container_agent.json   LeoBench's full result (status, returncode, image, tool policy, ...)
   conversation.txt, result.diff, and LeoBench's per-cell dirs (_claude, _codex, _corridor,
   _corridor-obs)
 
 Secrets stay in the environment: CLAUDE_CODE_OAUTH_TOKEN (or $LEOPREVENT_ENV_FILE), the staged
 Codex auth.json, CORRIDOR_API_KEY. Nothing secret is put on the LeoBench command line.
+
+The leoprevent arm runs the plugin snapshot run25_gen.sh staged from $LEOPREVENT_PLUGIN_DIR
+($LEOPREVENT_PLUGIN_STAGED, LeoBench's `container_agent.py stage-leoprevent`) against the server
+at $LEOPREVENT_SERVER_URL (host.docker.internal:8787 for these batches; the adapters'
+--leoprevent_server_url is a host-runtime option). Subscription auth only: the env file is the
+server's and holds its API key.
 """
 import json
 import os
@@ -35,7 +46,9 @@ from pathlib import Path
 
 from bench.agent import _corridor
 
-ARMS = ("raw", "corridor", "commit-control")
+ARMS = ("raw", "corridor", "commit-control", "leoprevent")
+# The run's staged Linux LeoPrevent plugin (LeoBench's `container_agent.py stage-leoprevent`).
+LEOPREVENT_STAGED_ENV = "LEOPREVENT_PLUGIN_STAGED"
 AUTHS = ("subscription", "api-key")
 # TESTS ONLY: a stub script run in the container instead of the agent (no model). Every record of
 # a cell run this way says stub_agent: true.
@@ -85,7 +98,8 @@ def add_args(parser):
     parser.add_argument("--agent_runtime", type=str, choices=["host", "container"], default="host",
                         help="host = the agent runs on this machine (the published A.S.E runs); "
                              "container = the agent step runs in LeoBench's cell container "
-                             "(raw, corridor and commit-control only; see bench/agent/_container.py)")
+                             "(raw, corridor, commit-control and leoprevent only; see "
+                             "bench/agent/_container.py)")
     parser.add_argument("--leobench_home", type=str, default=os.environ.get("LEOBENCH_HOME"),
                         help="LeoBench checkout for --agent_runtime container (default $LEOBENCH_HOME)")
 
@@ -95,13 +109,17 @@ class ContainerRuntime:
 
     def __init__(self, agent, arm, mode, repo_dir, model, logger, *, effort=None,
                  auth="subscription", env_file=None, corridor_dist=None, leobench_home=None,
-                 claude_policy=None, timeout=None):
+                 claude_policy=None, timeout=None, leoprevent_plugin=None):
         if agent not in ("claude", "codex"):
             raise ContainerRuntimeError(f"unknown agent {agent!r}")
         if arm not in ARMS:
             raise ContainerRuntimeError(
                 f"--agent_runtime container runs the new A.S.E arms only ({', '.join(ARMS)}); "
                 f"arm {arm!r} stays on the host runtime")
+        if arm == "leoprevent" and auth != "subscription":
+            raise ContainerRuntimeError("--arm leoprevent in the container runs on --auth "
+                                        "subscription only (the env file holds the LeoPrevent "
+                                        "server's API key)")
         if auth not in AUTHS:
             raise ContainerRuntimeError(f"--agent_runtime container supports --auth "
                                         f"{' or '.join(AUTHS)}, not {auth!r}")
@@ -116,6 +134,8 @@ class ContainerRuntime:
         self.leobench_home = leobench_home or os.environ.get("LEOBENCH_HOME")
         self.claude_policy = claude_policy or {}
         self.timeout = timeout
+        self.leoprevent_plugin = (leoprevent_plugin or os.environ.get(LEOPREVENT_STAGED_ENV)
+                                  if arm == "leoprevent" else None)
         self.project_repo = _corridor.project_for_repo(repo_dir) if arm in _corridor.ARMS else None
         self.result = None
 
@@ -131,6 +151,13 @@ class ContainerRuntime:
             if not self.corridor_dist:
                 raise ContainerRuntimeError("--arm corridor needs the staged Linux Corridor "
                                             "distribution ($CORRIDOR_DIST_DIR)")
+        if self.arm == "leoprevent" and not (
+                self.leoprevent_plugin
+                and os.path.isfile(os.path.join(self.leoprevent_plugin, ".staged-from"))):
+            raise ContainerRuntimeError(
+                f"--arm leoprevent needs the staged Linux plugin (${LEOPREVENT_STAGED_ENV}, "
+                f"LeoBench's `container_agent.py stage-leoprevent`); got "
+                f"{self.leoprevent_plugin!r}")
 
     def command(self, prompt_file, system_prompt_file, result_file):
         """The LeoBench command line. Paths and choices only: no secret is ever on it."""
@@ -146,6 +173,8 @@ class ContainerRuntime:
             cmd += ["--project-repo", self.project_repo]
         if self.arm == "corridor":
             cmd += ["--corridor-dist", str(self.corridor_dist)]
+        if self.arm == "leoprevent":
+            cmd += ["--leoprevent-plugin", str(self.leoprevent_plugin)]
         if self.env_file:
             cmd += ["--env-file", str(self.env_file)]
         if self.timeout:
@@ -198,6 +227,11 @@ class ContainerRuntime:
                                "restored_original": False, "runtime": "container",
                                "reason": f"not run: {res['error']}"})
                 self._write("corridor_review.json", review)
+            elif self.arm == "leoprevent":
+                self._write("leoprevent_review.json", {
+                    "reviewed": False, "valid": False, "review_count": 0,
+                    "restored_original": False, "runtime": "container",
+                    "reason": f"not run: {res['error']}"})
             stop = _breaker("not-run")
             if stop:
                 self.logger.error(f"LEOBENCH STOP: {stop}: {res['error']}; ending the run")
@@ -212,6 +246,11 @@ class ContainerRuntime:
             # return False, but the record must not read as a valid Corridor cell either.
             extra.update({"valid": False,
                           "reason": f"agent {res.get('status')} (rc={res.get('returncode')})"})
+            lp = res.get("leoprevent_review") or {}
+            if self.arm == "leoprevent" and res.get("status") == "unreviewed":
+                # The agent finished, the plugin never reviewed (fail-open, server error).
+                extra["reason"] = (f"not reviewed: {lp.get('signal')}"
+                                   + (f" ({lp['reason']})" if lp.get("reason") else ""))
         if self.arm == "corridor":
             review = dict(res.get("corridor_review") or {})
             review.update(extra)
@@ -222,6 +261,16 @@ class ContainerRuntime:
             rec = dict(res.get("commit_control") or {})
             rec.update(extra)
             self._write("commit_control.json", rec)
+        elif self.arm == "leoprevent":
+            review = dict(res.get("leoprevent_review") or
+                          {"reviewed": False, "valid": False, "review_count": 0,
+                           "reason": "no leoprevent_review in LeoBench's result"})
+            review.update(extra)
+            review["tool"] = res.get("tool") or {}
+            self._write("leoprevent_review.json", review)
+            self.logger.info(f"leoprevent record: reviewed={review.get('reviewed')} "
+                             f"reviews={review.get('review_count')} "
+                             f"rules={review.get('rule_ids')} valid={review.get('valid')}")
         self.logger.info(f"container agent status={res.get('status')} rc={res.get('returncode')} "
                          f"elapsed={res.get('elapsed_s')}s")
         stop = _breaker(res.get("status"))

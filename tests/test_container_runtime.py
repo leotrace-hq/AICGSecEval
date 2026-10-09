@@ -20,6 +20,7 @@ import logging
 import os
 import shutil
 import stat
+import struct
 import subprocess
 import sys
 import tempfile
@@ -50,8 +51,32 @@ import json, os, sys
 argv = sys.argv[1:]
 names = [argv[i + 1] for i, a in enumerate(argv[:-1]) if a == "-e" and "=" not in argv[i + 1]]
 with open(os.environ["FAKE_DOCKER_LOG"], "a") as f:
-    f.write(json.dumps({"argv": argv, "forwarded": {n: n in os.environ for n in names}}) + "\n")
+    f.write(json.dumps({"argv": argv, "forwarded": {n: n in os.environ for n in names},
+                        # non-secret LeoPrevent settings by value; billed keys by presence only
+                        "lp_env": {k: os.environ.get(k) for k in ("LEOPREVENT_SERVER_URL",
+                                                                  "LEOPREVENT_TIER")},
+                        "billed_keys": sorted(k for k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY",
+                                                          "ANTHROPIC_AUTH_TOKEN")
+                                              if k in os.environ)}) + "\n")
+# The LeoPrevent client log the plugin would write in the container ($FAKE_LP_EVENTS, JSON lines).
+events = os.environ.get("FAKE_LP_EVENTS")
+for i, a in enumerate(argv[:-1]):
+    if events and a == "-v" and argv[i + 1].endswith(":/home/cell/.config/leoprevent"):
+        with open(os.path.join(argv[i + 1].rsplit(":", 1)[0], "client.log"), "a") as f:
+            f.write(events)
 '''
+# The smallest file `file` calls "ELF 64-bit LSB executable, ARM aarch64" (LeoBench's
+# stage_linux_plugin checks the staged hook binary is one).
+ELF_ARM64 = (b"\x7fELF" + bytes([2, 1, 1, 0]) + bytes(8)
+             + struct.pack("<HHIQQQIHHHHHH", 2, 0xB7, 1, 0, 64, 0, 0, 64, 56, 0, 64, 0, 0))
+API_KEY, OPENAI_KEY = "sk-ant-SERVER-SECRET-0123456789", "sk-openai-SECRET-0123456789"
+LP_REVIEWED = "".join(json.dumps(e) + "\n" for e in (
+    {"msg": "cloud: server review", "time": "t1", "verdict": "triggered", "findings": 1,
+     "rules": ["csrf-state-changing-get"], "fired": True},
+    {"msg": "review fired, re-waking agent"},
+    {"msg": "cloud: server review", "time": "t2", "verdict": "clean", "findings": 0,
+     "rules": [], "fired": False},
+    {"msg": "reviewer raised nothing, allowing stop"}))
 
 
 def git(repo, *args, check=True):
@@ -125,12 +150,16 @@ class ContainerRuntimeFakeDocker(unittest.TestCase):
                "CORRIDOR_API_KEY": KEY, "CORRIDOR_LOCK_DIR": str(self.tmp / "locks"),
                "LEOBENCH_ACCOUNT": "test", "LEOBENCH_PLATFORM": "linux/arm64",
                "LEOBENCH_SANDBOX_IMAGE": "leobench-cell:test"}
-        for k in ("LEOPREVENT_ENV_FILE", "CORRIDOR_DIST_DIR", "CORRIDOR_MODE", _container.STUB_ENV):
+        cleared = ("LEOPREVENT_ENV_FILE", "CORRIDOR_DIST_DIR", "CORRIDOR_MODE", _container.STUB_ENV,
+                   "LEOPREVENT_SERVER_URL", "LEOPREVENT_TIER", "LEOPREVENT_PLUGIN_DIR",
+                   _container.LEOPREVENT_STAGED_ENV, "FAKE_LP_EVENTS", "ANTHROPIC_API_KEY",
+                   "OPENAI_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+        for k in cleared:
             env[k] = ""
         p = mock.patch.dict(os.environ, env)
         p.start()
         self.addCleanup(p.stop)
-        for k in ("LEOPREVENT_ENV_FILE", "CORRIDOR_DIST_DIR", "CORRIDOR_MODE", _container.STUB_ENV):
+        for k in cleared:
             os.environ.pop(k, None)
         p2 = mock.patch.object(_corridor, "CorridorCell", _NoHostCorridor)
         p2.start()
@@ -152,6 +181,26 @@ class ContainerRuntimeFakeDocker(unittest.TestCase):
                             "stage-corridor", fixture, str(self.tmp / "out")],
                            capture_output=True, text=True, check=True)
         return r.stdout.strip()
+
+    def staged_plugin(self):
+        """A fake plugin checkout, snapshotted by LeoBench's `stage-leoprevent` (as run25_gen.sh
+        does), and the environment run25_gen.sh gives an lp_sealed batch."""
+        src = self.tmp / "leoprevent" / "plugin"
+        (src / "bin").mkdir(parents=True)
+        (src / "bin" / "leoprevent-plugin-linux-arm64").write_bytes(ELF_ARM64)
+        (src / "bin" / "leoprevent-plugin").write_text("darwin build\n")
+        (src / "VERSION").write_text("9.9.9\n")
+        r = subprocess.run([sys.executable, os.path.join(LEOBENCH, "harness", "container_agent.py"),
+                            "stage-leoprevent", str(src), str(self.tmp / "out")],
+                           capture_output=True, text=True, check=True)
+        staged = r.stdout.strip()
+        os.environ.update({"LEOPREVENT_PLUGIN_DIR": str(src),
+                           _container.LEOPREVENT_STAGED_ENV: staged,
+                           "LEOPREVENT_SERVER_URL": "http://host.docker.internal:8787",
+                           "LEOPREVENT_TIER": "cloud",
+                           # the server's env file is in the operator's environment too
+                           "ANTHROPIC_API_KEY": API_KEY, "OPENAI_API_KEY": OPENAI_KEY})
+        return src, staged
 
     def docker_runs(self):
         rows = [json.loads(line) for line in self.log.read_text().splitlines()]
@@ -315,9 +364,123 @@ class ContainerRuntimeFakeDocker(unittest.TestCase):
         self.assertFalse(rec["restored_original"])
         self.assertTrue(rec["committed"])
 
+    # --- claude_lp_sealed / codex_lp_sealed ----------------------------------------------------
+
+    def test_claude_lp_sealed(self):
+        src, staged = self.staged_plugin()
+        os.environ["FAKE_LP_EVENTS"] = LP_REVIEWED
+        repo = make_cycle(self.tmp, "claude_code__claude_lp_sealed", "Capsa_CVE-2022-21675_cycle1")
+        bench, ok = run_adapter("claude", repo, adapter_args("claude", "leoprevent", None))
+        self.assertTrue(ok)
+        (run,) = self.docker_runs()
+        argv, joined = run["argv"], " ".join(run["argv"])
+        state = _corridor.state_dir_for(repo)
+        # raw_sealed's flags, unchanged, plus the plugin
+        self.assertIn("--allowedTools Read,Write,Edit,Grep --disallowedTools 'Bash(rm*)' "
+                      "--permission-mode acceptEdits --setting-sources= --plugin-dir /plugin",
+                      joined)
+        self.assertIn(claude_code.ASE_SYSTEM_PROMPT, joined)
+        self.assertNotIn("--dangerously-skip-permissions", joined)
+        self.assertNotIn("Bash(git:*)", joined)
+        self.assertNotIn(_corridor.COMMIT_INSTRUCTION, joined)
+        self.assertIn(f"{staged}:/plugin:ro", argv)
+        self.assertIn(f"{state}/_leoprevent:/home/cell/.config/leoprevent", argv)
+        self.assertIn(f"{state}/_claude:/home/cell/.claude", argv)
+        self.assertEqual(argv[argv.index("--add-host") + 1], "host.docker.internal:host-gateway")
+        self.assertEqual(run["forwarded"], {"CLAUDE_CODE_OAUTH_TOKEN": True,
+                                            "LEOPREVENT_SERVER_URL": True,
+                                            "LEOPREVENT_TIER": True,
+                                            "LEOPREVENT_REMEDIATE_PREEXISTING": False})
+        self.assertEqual(run["lp_env"], {"LEOPREVENT_SERVER_URL": "http://host.docker.internal:8787",
+                                         "LEOPREVENT_TIER": "cloud"})
+        self.assertEqual(run["billed_keys"], [])
+        self.assertIn("leobench-cell:test", argv)
+        (call,) = [c for c in self.leobench_calls if "run" in c]
+        self.assertEqual(call[call.index("--leoprevent-plugin") + 1], staged)
+        rec = json.loads((state / "leoprevent_review.json").read_text())
+        self.assertTrue(rec["reviewed"] and rec["valid"], rec)
+        self.assertEqual((rec["review_count"], rec["fired"], rec["verdicts"], rec["rule_ids"]),
+                         (2, 1, ["triggered", "clean"], ["csrf-state-changing-get"]))
+        self.assertTrue(rec["restored_original"])           # the fake agent wrote nothing
+        self.assertEqual(rec["runtime"], "container")
+        self.assertEqual((rec["tool"]["plugin_dir"], rec["tool"]["plugin_staged"]),
+                         (str(src), staged))
+        self.assertEqual(rec["tool"]["server_flags"]["LEOPREVENT_SERVER_URL"],
+                         "http://host.docker.internal:8787")
+        self.assertEqual((state / "leoprevent_client.log").read_text(), LP_REVIEWED)
+        for secret in (TOKEN, KEY, API_KEY, OPENAI_KEY):
+            self.assertNotIn(secret, self.all_text())
+
+    def test_codex_lp_sealed(self):
+        src, staged = self.staged_plugin()
+        os.environ["FAKE_LP_EVENTS"] = LP_REVIEWED
+        repo = make_cycle(self.tmp, "codex__codex_lp_sealed", "Capsa_CVE-2022-21675_cycle1")
+        bench, ok = run_adapter("codex", repo, adapter_args("codex", "leoprevent", None))
+        self.assertTrue(ok)
+        (run,) = self.docker_runs()
+        argv, joined = run["argv"], " ".join(run["argv"])
+        state = _corridor.state_dir_for(repo)
+        self.assertIn("codex exec", joined)
+        self.assertIn("--dangerously-bypass-hook-trust", joined)
+        self.assertIn("codex plugin marketplace add /leoprevent-mkt >/dev/null && "
+                      "codex plugin add leoprevent@leotrace-local >/dev/null", joined)
+        self.assertIn(f"{state}/_codex-mkt:/leoprevent-mkt:ro", argv)
+        self.assertTrue((state / "_codex-mkt" / ".agents" / "plugins" / "marketplace.json").is_file())
+        self.assertIn(f"{staged}:/plugin:ro", argv)
+        self.assertIn(f"{state}/_leoprevent:/home/cell/.config/leoprevent", argv)
+        self.assertIn(f"{state}/_codex:/home/cell/.codex", argv)
+        self.assertEqual(argv[argv.index("--add-host") + 1], "host.docker.internal:host-gateway")
+        self.assertEqual(run["forwarded"], {"CODEX_HOME": True, "LEOPREVENT_SERVER_URL": True,
+                                            "LEOPREVENT_TIER": True,
+                                            "LEOPREVENT_REMEDIATE_PREEXISTING": False})
+        self.assertEqual(run["lp_env"]["LEOPREVENT_SERVER_URL"], "http://host.docker.internal:8787")
+        self.assertEqual(run["billed_keys"], [])
+        rec = json.loads((state / "leoprevent_review.json").read_text())
+        self.assertTrue(rec["valid"], rec)
+        for secret in (TOKEN, KEY, API_KEY, OPENAI_KEY):
+            self.assertNotIn(secret, self.all_text())
+
+    def test_lp_sealed_unreviewed_cycle_is_invalid(self):
+        # The agent finished, the plugin never reviewed (here: no client log at all).
+        self.staged_plugin()
+        repo = make_cycle(self.tmp, "claude_code__claude_lp_sealed", "Capsa_CVE-2022-21675_cycle1")
+        bench, ok = run_adapter("claude", repo, adapter_args("claude", "leoprevent", None))
+        self.assertTrue(ok)                                 # A.S.E files the generation
+        rec = json.loads((_corridor.state_dir_for(repo) / "leoprevent_review.json").read_text())
+        self.assertFalse(rec["reviewed"] or rec["valid"], rec)
+        self.assertEqual(rec["reason"], "not reviewed: no client.log (hook never ran)")
+        # A fail-open review is the same: invalid.
+        os.environ["FAKE_LP_EVENTS"] = json.dumps({"msg": "review skipped",
+                                                   "reason": "server_error"}) + "\n"
+        repo = make_cycle(self.tmp, "claude_code__claude_lp_sealed", "Capsa_CVE-2022-21675_cycle2")
+        run_adapter("claude", repo, adapter_args("claude", "leoprevent", None))
+        rec = json.loads((_corridor.state_dir_for(repo) / "leoprevent_review.json").read_text())
+        self.assertFalse(rec["valid"])
+        self.assertEqual(rec["reason"], "not reviewed: review skipped (server_error)")
+
+    def test_lp_sealed_refusals(self):
+        repo = make_cycle(self.tmp, "claude_code__claude_lp_sealed", "Capsa_CVE-2022-21675_cycle1")
+        bench = claude_code.ClaudeCodeAgentBench(LOG, str(repo), adapter_args(
+            "claude", "leoprevent", None))
+        with self.assertRaises(_container.ContainerRuntimeError):   # no staged plugin
+            asyncio.run(bench.start())
+        with self.assertRaises(_container.ContainerRuntimeError):   # billed route
+            claude_code.ClaudeCodeAgentBench(LOG, str(repo), adapter_args(
+                "claude", "leoprevent", None, ["--auth", "api-key"]))
+        # A loopback server URL names the container itself: LeoBench refuses, nothing runs, and
+        # the cycle's record says so.
+        self.staged_plugin()
+        os.environ["LEOPREVENT_SERVER_URL"] = "http://127.0.0.1:8787"
+        with self.assertRaises(_container.ContainerRuntimeError):
+            run_adapter("claude", repo, adapter_args("claude", "leoprevent", None))
+        self.assertEqual(self.docker_runs() if self.log.exists() else [], [])
+        rec = json.loads((_corridor.state_dir_for(repo) / "leoprevent_review.json").read_text())
+        self.assertFalse(rec["valid"])
+        self.assertIn("loopback", rec["reason"])
+
     def test_refusals(self):
         repo = make_cycle(self.tmp, "claude_code__x", "Capsa_CVE-2022-21675_cycle1")
-        for arm in ("leoprevent", "security-guidance"):
+        for arm in ("security-guidance",):
             with self.assertRaises(_container.ContainerRuntimeError):
                 claude_code.ClaudeCodeAgentBench(LOG, str(repo), adapter_args("claude", arm, None))
         with self.assertRaises(_container.ContainerRuntimeError):
