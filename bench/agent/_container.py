@@ -46,7 +46,10 @@ from pathlib import Path
 
 from bench.agent import _corridor
 
-ARMS = ("raw", "corridor", "commit-control", "leoprevent")
+ARMS = ("raw", "corridor", "commit-control", "leoprevent", "sonar-vortex")
+# Arms that need the task's leotrace-benchmarking repo name: Corridor's project, and the name of
+# the task's SonarQube Cloud project (leotrace-hq_<repo>, LeoBench's run_cell.sonar_project_key).
+_PROJECT_ARMS = _corridor.ARMS + ("sonar-vortex",)
 # The run's staged Linux LeoPrevent plugin (LeoBench's `container_agent.py stage-leoprevent`).
 LEOPREVENT_STAGED_ENV = "LEOPREVENT_PLUGIN_STAGED"
 AUTHS = ("subscription", "api-key")
@@ -98,7 +101,8 @@ def add_args(parser):
     parser.add_argument("--agent_runtime", type=str, choices=["host", "container"], default="host",
                         help="host = the agent runs on this machine (the published A.S.E runs); "
                              "container = the agent step runs in LeoBench's cell container "
-                             "(raw, corridor, commit-control and leoprevent only; see "
+                             "(raw, corridor, commit-control, leoprevent and sonar-vortex "
+                             "only; see "
                              "bench/agent/_container.py)")
     parser.add_argument("--leobench_home", type=str, default=os.environ.get("LEOBENCH_HOME"),
                         help="LeoBench checkout for --agent_runtime container (default $LEOBENCH_HOME)")
@@ -136,7 +140,7 @@ class ContainerRuntime:
         self.timeout = timeout
         self.leoprevent_plugin = (leoprevent_plugin or os.environ.get(LEOPREVENT_STAGED_ENV)
                                   if arm == "leoprevent" else None)
-        self.project_repo = _corridor.project_for_repo(repo_dir) if arm in _corridor.ARMS else None
+        self.project_repo = _corridor.project_for_repo(repo_dir) if arm in _PROJECT_ARMS else None
         self.result = None
 
     def check(self):
@@ -227,6 +231,10 @@ class ContainerRuntime:
                                "restored_original": False, "runtime": "container",
                                "reason": f"not run: {res['error']}"})
                 self._write("corridor_review.json", review)
+            elif self.arm == "sonar-vortex":
+                self._write("vortex_review.json", {
+                    "reviewed": False, "valid": False, "restored_original": False,
+                    "runtime": "container", "reason": f"not run: {res['error']}"})
             elif self.arm == "leoprevent":
                 self._write("leoprevent_review.json", {
                     "reviewed": False, "valid": False, "review_count": 0,
@@ -261,6 +269,15 @@ class ContainerRuntime:
             rec = dict(res.get("commit_control") or {})
             rec.update(extra)
             self._write("commit_control.json", rec)
+        elif self.arm == "sonar-vortex":
+            review = dict(res.get("vortex_review") or
+                          {"reviewed": False, "reason": "no vortex_review in LeoBench's result"})
+            review.setdefault("valid", bool(review.get("reviewed")))
+            review.update(extra)
+            review["tool"] = res.get("tool") or {}
+            self._write("vortex_review.json", review)
+            self.logger.info(f"vortex record: reviewed={review.get('reviewed')} "
+                             f"signal={review.get('signal')} valid={review.get('valid')}")
         elif self.arm == "leoprevent":
             review = dict(res.get("leoprevent_review") or
                           {"reviewed": False, "valid": False, "review_count": 0,

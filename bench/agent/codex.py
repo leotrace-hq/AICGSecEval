@@ -49,6 +49,10 @@ class CodexAgentBench(AgentBenchBase):
                 corridor_dist=agent_args.corridor_dist_dir,
                 leobench_home=agent_args.leobench_home)
             return
+        if self._arm == "sonar-vortex":
+            # Sonar runs only in the cell container (operator decision 2026-10-12): never on the
+            # host, so there is no host path for this arm.
+            raise ValueError("--arm sonar-vortex runs with --agent_runtime container only")
         if self._arm in _corridor.ARMS:
             self._corridor_mode = _corridor.resolve_mode(self._arm, agent_args.corridor_mode)
             self._corridor = _corridor.CorridorCell(self._arm, self._corridor_mode, "codex", repo_dir,
@@ -71,7 +75,7 @@ class CodexAgentBench(AgentBenchBase):
                                  "config.toml cannot set it")
         parser.add_argument("--codex_sandbox_mode", type=str, default="workspace-write", help="沙箱模式（保留兼容，leobench 臂统一使用 bypass）")
         # --- LeoBench arm/auth options ---
-        parser.add_argument("--arm", type=str, choices=["raw", "leoprevent", "corridor", "commit-control"],
+        parser.add_argument("--arm", type=str, choices=["raw", "leoprevent", "corridor", "commit-control", "sonar-vortex"],
                             default="raw",
                             help="raw = agent alone; leoprevent = agent with the LeoPrevent review plugin; "
                                  "corridor = agent with Corridor (--corridor_mode); "

@@ -32,9 +32,18 @@ def container_claude_policy(arm, mode):
         allowed.append("Bash(git:*)")
     if arm == "corridor":
         allowed.append(CORRIDOR_MCP_ALLOW)
+    if arm == "sonar-vortex":
+        # Sonar's instructions ask the agent to run `sonar analyze agentic` before it finishes;
+        # the sonar command alone is allowed (operator decision 2026-10-12), and the user
+        # settings load because `sonar integrate claude` installs into the cell HOME's ~/.claude.
+        allowed.append(SONAR_BASH_ALLOW)
     return {"allowed_tools": allowed, "disallowed_tools": list(ASE_DISALLOWED_TOOLS),
             "permission_mode": ASE_PERMISSION_MODE, "system_prompt": ASE_SYSTEM_PROMPT,
-            "setting_sources": list(_corridor.CLAUDE_SETTING_SOURCES) if arm == "corridor" else []}
+            "setting_sources": (list(_corridor.CLAUDE_SETTING_SOURCES)
+                                if arm in ("corridor", "sonar-vortex") else [])}
+
+
+SONAR_BASH_ALLOW = "Bash(sonar:*)"
 
 
 
@@ -113,6 +122,10 @@ class ClaudeCodeAgentBench(AgentBenchBase):
                 leobench_home=agent_args.leobench_home,
                 claude_policy=container_claude_policy(self._arm, self._corridor_mode))
             return
+        if self._arm == "sonar-vortex":
+            # Sonar runs only in the cell container (operator decision 2026-10-12): never on the
+            # host, so there is no host path for this arm.
+            raise ValueError("--arm sonar-vortex runs with --agent_runtime container only")
         if self._arm in _corridor.ARMS:
             self._corridor_mode = _corridor.resolve_mode(self._arm, agent_args.corridor_mode)
             self._corridor = _corridor.CorridorCell(self._arm, self._corridor_mode, "claude", repo_dir,
@@ -133,7 +146,8 @@ class ClaudeCodeAgentBench(AgentBenchBase):
                             default="claude-sonnet-4-20250514", help="模型名称")
         # --- LeoBench arm/auth options ---
         parser.add_argument("--arm", type=str,
-                            choices=["raw", "leoprevent", "security-guidance", "corridor", "commit-control"],
+                            choices=["raw", "leoprevent", "security-guidance", "corridor", "commit-control",
+                                     "sonar-vortex"],
                             default="raw",
                             help="raw = agent alone; leoprevent = agent with the LeoPrevent review plugin; "
                                  "security-guidance = agent with Anthropic's security-guidance plugin; "
