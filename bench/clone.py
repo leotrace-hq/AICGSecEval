@@ -60,8 +60,8 @@ def clone_tree(src, dst, *, ignore=None, symlinks=True, dirs_exist_ok=False):
     otherwise copytree walks it and clones each file. A symlinked `src` (a run's raw_repo/<repo>
     after finish_run points into the shared clone cache) is resolved first, as copytree does:
     cloning the link itself would let the agent edit the cache through it."""
-    if ignore is None and symlinks and not os.path.lexists(dst):
-        if clonefile(os.path.realpath(src), dst):
-            return dst
+    if (ignore is None and symlinks and not os.path.lexists(dst)
+            and clonefile(os.path.realpath(src), dst)):
+        return dst
     return shutil.copytree(src, dst, symlinks=symlinks, ignore=ignore,
                            copy_function=clone_file, dirs_exist_ok=dirs_exist_ok)
