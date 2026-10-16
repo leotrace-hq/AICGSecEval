@@ -240,6 +240,14 @@ def clone_repo(repo, repo_dir, logger, github_token=None):
         Path: The path to the cloned repository directory.
     """
 
+    if repo_dir.is_symlink():
+        # LeoBench's finish_run.py replaced the clone by a link to a shared bare clone once the run
+        # was finished (LEO-556). It serves the reports' `git show`, but has no working tree to copy
+        # a cycle from, and must never be written to by a generation run.
+        raise RuntimeError(
+            f"{repo_dir} links into LeoBench's shared repo cache (the run was compacted by "
+            f"finish_run.py). To generate into this run again, restore a working clone first: "
+            f"target=$(readlink {repo_dir}) && rm {repo_dir} && git clone \"$target\" {repo_dir}")
     if not repo_dir.exists():
 
         # 如果 repo 是 gitlab 地址，则使用 gitlab 地址
