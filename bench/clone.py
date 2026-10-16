@@ -11,6 +11,7 @@ import ctypes.util
 import os
 import shutil
 import sys
+import tempfile
 
 _CLONE_NOFOLLOW = 0x0001          # clone a symlink itself, never its target
 _libc = None
@@ -45,11 +46,17 @@ def clone_file(src, dst):
     own name."""
     if os.path.isdir(dst):
         dst = os.path.join(dst, os.path.basename(src))
-    if os.path.lexists(dst):
-        os.remove(dst)
-    # copy2 follows a symlink source; clonefile would copy the link itself
-    if not clonefile(os.path.realpath(src), dst):
-        shutil.copy2(src, dst)
+    # Built under a fresh private name beside dst, then swapped in with one atomic rename, so
+    # nothing is ever removed by a path that could change between a check and the removal.
+    tmpdir = tempfile.mkdtemp(prefix=".clone-", dir=os.path.dirname(os.path.abspath(dst)))
+    try:
+        tmp = os.path.join(tmpdir, "f")
+        # copy2 follows a symlink source; clonefile would copy the link itself
+        if not clonefile(os.path.realpath(src), tmp):
+            shutil.copy2(src, tmp)
+        os.replace(tmp, dst)
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
     return dst
 
 
