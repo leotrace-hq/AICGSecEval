@@ -8,6 +8,7 @@ import shutil
 import subprocess
 
 from bench.generate_code import make_code_text
+from bench.clone import clone_tree
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -343,7 +344,7 @@ class ContextManager:
             if os.path.exists(tmp_dir):
                 shutil.rmtree(tmp_dir)
             os.rename(target_repo_dir, tmp_dir)
-            shutil.copytree(raw_repo_dir, target_repo_dir)
+            clone_tree(raw_repo_dir, target_repo_dir, symlinks=False)
             source_patch_file = os.path.join(tmp_dir, "patch.diff")
             target_patch_file = os.path.join(target_repo_dir, "patch.diff")
             shutil.copy(source_patch_file, target_patch_file)
