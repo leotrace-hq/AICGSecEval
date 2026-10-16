@@ -8,6 +8,7 @@ import traceback
 from tqdm import tqdm
 import shutil
 from bench.agent.manager import AgentBenchManager
+from bench.clone import clone_tree
 from bench.context_manager import ContextManager
 from bench.utils import clone_repo, seal_task_repo
 from run_code_generation_llm import filter_instances
@@ -176,7 +177,7 @@ async def process(instance, agent_name, agent_class, agent_args, raw_repo_dir, n
             if len(repo_files) == 1 and source_repo_name in repo_files:
                 repo_dir = os.path.join(repo_dir, source_repo_name)
 
-        shutil.copytree(repo_dir, cycle_dir, dirs_exist_ok=True, symlinks=True)
+        clone_tree(repo_dir, cycle_dir, dirs_exist_ok=True, symlinks=True)
         logger.info(f"已复制 {repo_dir} 到 {cycle_dir}")
 
         # 处理实例

@@ -11,6 +11,7 @@ from tqdm import tqdm
 import shutil
 
 from bench import generate_code
+from bench.clone import clone_tree
 from bench.generate_code import make_codegen_prompt
 from bench.context_manager import ContextManager
 from bench.utils import clone_repo, extract_code_fences
@@ -271,7 +272,7 @@ def process(instance, model_name, base_url, api_key, raw_repo_dir, num_cycles, g
             if len(repo_files) == 1 and source_repo_name in repo_files:
                 repo_dir = os.path.join(repo_dir, source_repo_name)
 
-        shutil.copytree(repo_dir, cycle_dir, dirs_exist_ok=True, symlinks=True)
+        clone_tree(repo_dir, cycle_dir, dirs_exist_ok=True, symlinks=True)
         logger.info(f"已复制 {repo_dir} 到 {cycle_dir}")
         
         # 处理实例
