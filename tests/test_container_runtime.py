@@ -35,6 +35,7 @@ from bench.agent import _container  # noqa: E402
 from bench.agent import _corridor  # noqa: E402
 from bench.agent import claude_code  # noqa: E402
 from bench.agent import codex  # noqa: E402
+from bench.agent import cursor  # noqa: E402
 from bench.utils import seal_task_repo  # noqa: E402
 
 LEOBENCH = os.environ.get("LEOBENCH_HOME")
@@ -70,6 +71,7 @@ for i, a in enumerate(argv[:-1]):
 ELF_ARM64 = (b"\x7fELF" + bytes([2, 1, 1, 0]) + bytes(8)
              + struct.pack("<HHIQQQIHHHHHH", 2, 0xB7, 1, 0, 64, 0, 0, 64, 56, 0, 64, 0, 0))
 API_KEY, OPENAI_KEY = "sk-ant-SERVER-SECRET-0123456789", "sk-openai-SECRET-0123456789"
+CURSOR_TOKEN = "cursor-ACCESS-SECRET-0123456789"
 LP_REVIEWED = "".join(json.dumps(e) + "\n" for e in (
     {"msg": "cloud: server review", "time": "t1", "verdict": "triggered", "findings": 1,
      "rules": ["csrf-state-changing-get"], "fired": True},
@@ -104,12 +106,15 @@ def adapter_args(agent, arm, mode, extra=()):
     if agent == "claude":
         return claude_code.ClaudeCodeAgentBench.parse_args(
             argv + ["--claude_model", "claude-test"])
+    if agent == "cursor":
+        return cursor.CursorAgentBench.parse_args(argv + ["--cursor_model", "composer-2.5"])
     return codex.CodexAgentBench.parse_args(argv + ["--codex_model", "gpt-test",
                                                     "--codex_effort", "medium"])
 
 
 def run_adapter(agent, repo, args):
-    cls = claude_code.ClaudeCodeAgentBench if agent == "claude" else codex.CodexAgentBench
+    cls = {"claude": claude_code.ClaudeCodeAgentBench, "cursor": cursor.CursorAgentBench}.get(
+        agent, codex.CodexAgentBench)
     bench = cls(LOG, str(repo), args)
 
     async def go():
@@ -144,6 +149,10 @@ class ContainerRuntimeFakeDocker(unittest.TestCase):
         home = self.tmp / "home"
         (home / ".codex").mkdir(parents=True)
         (home / ".codex" / "auth.json").write_text(json.dumps({"auth_mode": "chatgpt"}))
+        # The Cursor login cells copy (LeoBench's _agents.cursor_auth_path under this HOME).
+        (home / ".config" / "leobench" / "cursor").mkdir(parents=True)
+        (home / ".config" / "leobench" / "cursor" / "auth.json").write_text(
+            json.dumps({"accessToken": CURSOR_TOKEN}))
         self.dist = None
         env = {"PATH": f"{bindir}:{os.environ['PATH']}", "HOME": str(home),
                "FAKE_DOCKER_LOG": str(self.log), "CLAUDE_CODE_OAUTH_TOKEN": TOKEN,
@@ -439,6 +448,51 @@ class ContainerRuntimeFakeDocker(unittest.TestCase):
         self.assertTrue(rec["valid"], rec)
         for secret in (TOKEN, KEY, API_KEY, OPENAI_KEY):
             self.assertNotIn(secret, self.all_text())
+
+    def test_cursor_raw_sealed(self):
+        repo = make_cycle(self.tmp, "cursor__cursor_raw_sealed", "Capsa_CVE-2022-21675_cycle1")
+        bench, ok = run_adapter("cursor", repo, adapter_args("cursor", "raw", None))
+        self.assertTrue(ok)
+        (run,) = self.docker_runs()
+        argv, joined = run["argv"], " ".join(run["argv"])
+        state = _corridor.state_dir_for(repo)
+        # Interactive, through LeoBench's driver, never print mode (LEO-736).
+        self.assertIn("python3 /leobench-cursor/cursor_tty.py --deny-web -- cursor-agent "
+                      "--model composer-2.5 --force", joined)
+        self.assertNotIn(" -p ", joined)
+        self.assertIn(f"{state}/_cursor/config:/home/cell/.config/cursor", argv)
+        self.assertIn(f"{state}/_cursor/dot-cursor:/home/cell/.cursor", argv)
+        self.assertTrue((state / "_cursor" / "config" / "auth.json").is_file())
+        self.assertEqual(run["forwarded"], {})          # the login is a file, never an env var
+        self.assertNotIn(CURSOR_TOKEN, self.log.read_text())
+        res = json.loads((state / "container_agent.json").read_text())
+        self.assertEqual((res["agent"], res["arm"], res["returncode"]), ("cursor", "raw", 0))
+
+    def test_cursor_lp_sealed(self):
+        src, staged = self.staged_plugin()
+        os.environ["FAKE_LP_EVENTS"] = LP_REVIEWED
+        repo = make_cycle(self.tmp, "cursor__cursor_lp_sealed", "Capsa_CVE-2022-21675_cycle1")
+        bench, ok = run_adapter("cursor", repo, adapter_args("cursor", "leoprevent", None))
+        self.assertTrue(ok)
+        (run,) = self.docker_runs()
+        argv, joined = run["argv"], " ".join(run["argv"])
+        state = _corridor.state_dir_for(repo)
+        # Installed where a customer installs it: this CLI ignores --plugin-dir hooks.
+        self.assertIn(f"{staged}:/home/cell/.cursor/plugins/local/leoprevent:ro", argv)
+        self.assertNotIn("--plugin-dir", joined)
+        self.assertEqual(run["forwarded"], {"LEOPREVENT_SERVER_URL": True,
+                                            "LEOPREVENT_TIER": True,
+                                            "LEOPREVENT_REMEDIATE_PREEXISTING": False})
+        self.assertEqual(run["billed_keys"], [])
+        rec = json.loads((state / "leoprevent_review.json").read_text())
+        self.assertTrue(rec["valid"], rec)
+        for secret in (TOKEN, KEY, API_KEY, OPENAI_KEY, CURSOR_TOKEN):
+            self.assertNotIn(secret, self.log.read_text())
+
+    def test_cursor_has_no_host_runtime(self):
+        args = cursor.CursorAgentBench.parse_args(["--arm", "raw", "--cursor_model", "composer-2.5"])
+        with self.assertRaises(ValueError):
+            cursor.CursorAgentBench(LOG, str(self.tmp), args)
 
     def test_lp_sealed_unreviewed_cycle_is_invalid(self):
         # The agent finished, the plugin never reviewed (here: no client log at all).

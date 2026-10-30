@@ -114,7 +114,7 @@ class ContainerRuntime:
     def __init__(self, agent, arm, mode, repo_dir, model, logger, *, effort=None,
                  auth="subscription", env_file=None, corridor_dist=None, leobench_home=None,
                  claude_policy=None, timeout=None, leoprevent_plugin=None):
-        if agent not in ("claude", "codex"):
+        if agent not in ("claude", "codex", "cursor"):
             raise ContainerRuntimeError(f"unknown agent {agent!r}")
         if arm not in ARMS:
             raise ContainerRuntimeError(
