@@ -36,7 +36,6 @@ import time
 from pathlib import Path
 
 from bench.agent import _container, _corridor
-from bench.agent.base import AgentBenchBase
 from bench.agent.claude_code import container_claude_policy
 
 ORG = "leotrace-hq"
@@ -199,12 +198,7 @@ def do_cycle(a, rec, src_cycle, logger):
     for f in ("prompt.txt", "conversation.txt", "result.diff", "container_agent.json"):
         if (state / f).exists():
             (state / f).rename(state / f"notool.{f}")
-    # The archive kept prompt.txt for only some cycles, so the task prompt is rebuilt with the
-    # fork's own make_prompt. The no-tool run listed the context files in set() order, which
-    # varies per process; sorted here (75 saved prompts matched line for line, order aside).
-    files = sorted(set(h["docid"] for h in a.context[inst.lower()]["hits"]))
-    task_prompt = AgentBenchBase.make_prompt(None, rec["vuln_file"],
-                                             a.context[inst.lower()]["function_summary"], files)
+    task_prompt = (state / "notool.prompt.txt").read_text(encoding="utf-8")
     run(["git", "init", "-q"], cwd=dst)
     run(["git", "add", "-A"], cwd=dst)
     run([*GIT, "commit", "-q", "-m", "no-tool cycle"], cwd=dst)
@@ -294,7 +288,6 @@ def main():
     ap.add_argument("--out-batch", required=True, type=Path,
                     help="the arm's batch dir (generated_code/<llm>__<agent>_deepreview)")
     ap.add_argument("--dataset", required=True)
-    ap.add_argument("--context", required=True, help="the cohort's retrieval context json")
     ap.add_argument("--agent", required=True, choices=["claude", "codex"])
     ap.add_argument("--model", required=True)
     ap.add_argument("--label", required=True, help="branch label, e.g. opus55, astra, sol")
@@ -314,7 +307,6 @@ def main():
                                   logging.FileHandler(a.out_batch.parent / f"{a.out_batch.name}.log")])
     logger = logging.getLogger("deep_review")
     # Cycle dirs carry the instance id lowercased (zju-cve-2017-9841_cycle1).
-    a.context = {r["instance_id"].lower(): r for r in json.load(open(a.context))}
     data = {r["instance_id"].lower(): r for r in json.load(open(a.dataset))}
     cycles = sorted(p for p in a.src_batch.iterdir()
                     if p.is_dir() and re.fullmatch(r".+_cycle\d+", p.name)
