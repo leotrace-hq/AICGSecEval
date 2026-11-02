@@ -223,15 +223,20 @@ def do_cycle(a, rec, src_cycle, logger):
         (state / "deep_review.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
         logger.info(f"{cname}: no-change (the graded tree equals the masked base)")
         return record
-    branch = f"cell/{a.label}-{cname}"
+    # A closed PR whose branch was force-pushed cannot be reopened (HTTP 422), so a redone cycle
+    # gets a fresh branch (-r1, -r2, ...) and a new PR; an open PR on the branch is reused.
+    base, n = f"cell/{a.label}-{cname}", 0
+    while True:
+        branch = base if n == 0 else f"{base}-r{n}"
+        existing = gh_json([f"repos/{ORG}/{repo}/pulls?head={ORG}:{branch}&state=all"]) or []
+        if not existing or existing[0]["state"] == "open":
+            break
+        n += 1
     sha1 = push_branch(a.cache, repo, branch, "origin/main", f"Implement {rec['vuln_file']}",
                        files_from=src_cycle, files=files)
     title = f"Implement {Path(rec['vuln_file']).name}"
-    existing = gh_json([f"repos/{ORG}/{repo}/pulls?head={ORG}:{branch}&state=all"]) or []
     if existing:
         pr = existing[0]["number"]
-        if existing[0]["state"] != "open":
-            run(["gh", "api", "-X", "PATCH", f"repos/{ORG}/{repo}/pulls/{pr}", "-f", "state=open"])
     else:
         pr = gh_json(["-X", "POST", f"repos/{ORG}/{repo}/pulls", "-f", f"title={title}",
                       "-f", f"head={branch}", "-f", "base=main",
