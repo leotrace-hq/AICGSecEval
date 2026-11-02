@@ -33,6 +33,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 from pathlib import Path
 
 from bench.agent import _container, _corridor
@@ -42,6 +43,8 @@ ORG = "leotrace-hq"
 CHECK_NAME = "Aikido Security: Deep Review"
 BOT = "aikido-pr-checks[bot]"
 REVIEW_TIMEOUT_S = 30 * 60
+# The re-review after the fix is informational (the graded code is the fixed code either way).
+REREVIEW_TIMEOUT_S = 10 * 60
 POLL_S = 20
 GIT = ["git", "-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential",
        "-c", "user.name=LeoBench", "-c", "user.email=leobench@leotrace.io"]
@@ -131,18 +134,26 @@ def push_branch(cache, repo, branch, base_ref, message, patch=None, files_from=N
         run(["git", "add", "-A"], cwd=wt)
         run([*GIT, "commit", "-q", "-m", message], cwd=wt)
         sha = run(["git", "rev-parse", "HEAD"], cwd=wt).stdout.strip()
-        run([*GIT, "push", "-q", "-f", "origin", f"HEAD:refs/heads/{branch}"], cwd=wt)
+        for attempt in range(4):  # GitHub sometimes rejects concurrent pushes to one repo
+            r = run([*GIT, "push", "-q", "-f", "origin", f"HEAD:refs/heads/{branch}"], cwd=wt,
+                    check=attempt == 3)
+            if r.returncode == 0:
+                break
+            time.sleep(5 * (attempt + 1))
         return sha
     finally:
         with task_lock(repo):
             run(["git", "worktree", "remove", "--force", str(wt)], cwd=clone, check=False)
 
 
-def wait_for_review(repo, sha):
-    """Wait for the Deep Review check on `sha`; returns its check run (or None on timeout)."""
-    deadline = time.time() + REVIEW_TIMEOUT_S
+def wait_for_review(repo, sha, timeout=REVIEW_TIMEOUT_S):
+    """Wait for the Deep Review check on `sha`; returns its check run (or None on timeout).
+    Asked for by name: upstream workflows can add dozens of check runs to a commit, which pushed
+    Deep Review's off the first page (2026-11-02, mlflow; Actions are now off on the task repos)."""
+    deadline = time.time() + timeout
+    q = urllib.parse.quote(CHECK_NAME)
     while time.time() < deadline:
-        runs = (gh_json([f"repos/{ORG}/{repo}/commits/{sha}/check-runs"]) or {}).get("check_runs", [])
+        runs = (gh_json([f"repos/{ORG}/{repo}/commits/{sha}/check-runs?check_name={q}"]) or {}).get("check_runs", [])
         dr = [c for c in runs if c.get("name") == CHECK_NAME]
         if dr and dr[0].get("status") == "completed":
             return dr[0]
@@ -262,7 +273,7 @@ def do_cycle(a, rec, src_cycle, logger):
         return finish(a, repo, pr, state, record, logger)
     if fix.strip():
         sha2 = push_branch(a.cache, repo, branch, sha1, "Address review comments", patch=fix)
-        check2 = wait_for_review(repo, sha2)
+        check2 = wait_for_review(repo, sha2, REREVIEW_TIMEOUT_S)
         record.update(head_final=sha2, rereview_check=check2 and {
             "conclusion": check2.get("conclusion"), "completed_at": check2.get("completed_at")},
             rereview_comments=bot_comments(repo, pr, sha2) if check2 else None)
