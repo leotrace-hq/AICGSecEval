@@ -352,7 +352,9 @@ def do_cycle(a, rec, src_cycle, logger):
     for c in inline:
         c["severity"], c["category"] = inline_meta(c["body"])
     record.update(reviews=[{"id": r["id"], "state": r.get("state"), "body": r.get("body", "")} for r in reviews],
-                  inline=inline, counts=counts, delivered=len(inline) + counts["nitpick"] + counts["outside_diff"],
+                  inline=inline, counts=counts,
+                  # One inline comment can carry several actionable findings (pilot 2026-11-11: 2 in 1).
+                  delivered=max(len(inline), counts["actionable"]) + counts["nitpick"] + counts["outside_diff"],
                   severities=[c["severity"] for c in inline], categories=[c["category"] for c in inline])
     if not has_findings(counts, inline):
         record.update(status="clean", elapsed_s=round(time.time() - t0))
