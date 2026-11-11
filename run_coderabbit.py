@@ -438,6 +438,14 @@ def main():
                     and p.name.rsplit("_cycle", 1)[0].lower() in data)
     if a.only:
         cycles = [p for p in cycles if p.name in a.only]
+    # Only cycles A.S.E counts as generated: a failed or unfinished source cycle is not in the source
+    # batch's processed_instances.json (or has success false) and is never graded there either.
+    src_done = {k.lower(): v for k, v in json.loads((a.src_batch / "processed_instances.json").read_text()).items()
+                if v.get("success")}
+    missing = [p.name for p in cycles if p.name.lower() not in src_done]
+    if missing:
+        logger.info(f"skipping {len(missing)} cycles the source batch did not generate: {missing}")
+    cycles = [p for p in cycles if p.name.lower() in src_done]
     logger.info(f"{len(cycles)} cycles from {a.src_batch} -> {a.out_batch} (org {ORG})")
     with concurrent.futures.ThreadPoolExecutor(a.workers) as ex:
         futs = {ex.submit(do_cycle, a, data[p.name.rsplit("_cycle", 1)[0].lower()], p, logger): p
@@ -454,6 +462,10 @@ def main():
     by = {}
     for r in recs:
         by[r["status"]] = by.get(r["status"], 0) + 1
+    # A.S.E's security_scan grades the cycles listed in the batch's processed_instances.json.
+    final = {r["cycle"].lower() for r in recs if r["status"] in ("clean", "fixed", "fix-failed", "no-change")}
+    proc = {p.name: src_done[p.name.lower()] for p in cycles if p.name.lower() in final}
+    (a.out_batch / "processed_instances.json").write_text(json.dumps(proc, indent=2), encoding="utf-8")
     logger.info(f"done: {len(recs)}/{len(cycles)} recorded {by}")
     if _stop.is_set():
         sys.exit(75)
