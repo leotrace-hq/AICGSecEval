@@ -464,7 +464,9 @@ def main():
         by[r["status"]] = by.get(r["status"], 0) + 1
     # A.S.E's security_scan grades the cycles listed in the batch's processed_instances.json.
     final = {r["cycle"].lower() for r in recs if r["status"] in ("clean", "fixed", "fix-failed", "no-change")}
-    proc = {p.name: src_done[p.name.lower()] for p in cycles if p.name.lower() in final}
+    # every recorded cycle of the batch, not only this invocation's (--only must not drop earlier cycles)
+    names = {p.name.lower(): p.name for p in a.src_batch.iterdir() if p.is_dir()}
+    proc = {names[c]: src_done[c] for c in sorted(final) if c in src_done and c in names}
     (a.out_batch / "processed_instances.json").write_text(json.dumps(proc, indent=2), encoding="utf-8")
     logger.info(f"done: {len(recs)}/{len(cycles)} recorded {by}")
     if _stop.is_set():
