@@ -2,6 +2,7 @@ from .claude_code import ClaudeCodeAgentBench
 from .gemini import GeminiAgentBench
 from .codex import CodexAgentBench
 from .cursor import CursorAgentBench
+from .cosine import CosineAgentBench
 
 # 在这里注册所有可进行评测的 Agent：
 #   key 为 Agent 的名称，对应到启动参数 --agent_name
@@ -11,6 +12,7 @@ agent_bench_map = {
     "gemini": GeminiAgentBench,
     "codex": CodexAgentBench,
     "cursor": CursorAgentBench,
+    "cosine": CosineAgentBench,
 }
 
 __all__ = ["agent_bench_map"]

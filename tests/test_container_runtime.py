@@ -36,6 +36,7 @@ from bench.agent import _corridor  # noqa: E402
 from bench.agent import claude_code  # noqa: E402
 from bench.agent import codex  # noqa: E402
 from bench.agent import cursor  # noqa: E402
+from bench.agent import cosine  # noqa: E402
 from bench.utils import seal_task_repo  # noqa: E402
 
 LEOBENCH = os.environ.get("LEOBENCH_HOME")
@@ -108,12 +109,15 @@ def adapter_args(agent, arm, mode, extra=()):
             argv + ["--claude_model", "claude-test"])
     if agent == "cursor":
         return cursor.CursorAgentBench.parse_args(argv + ["--cursor_model", "composer-2.5"])
+    if agent == "cosine":
+        return cosine.CosineAgentBench.parse_args(argv + ["--cosine_model", "lumen-outpost"])
     return codex.CodexAgentBench.parse_args(argv + ["--codex_model", "gpt-test",
                                                     "--codex_effort", "medium"])
 
 
 def run_adapter(agent, repo, args):
-    cls = {"claude": claude_code.ClaudeCodeAgentBench, "cursor": cursor.CursorAgentBench}.get(
+    cls = {"claude": claude_code.ClaudeCodeAgentBench, "cursor": cursor.CursorAgentBench,
+           "cosine": cosine.CosineAgentBench}.get(
         agent, codex.CodexAgentBench)
     bench = cls(LOG, str(repo), args)
 
@@ -153,6 +157,9 @@ class ContainerRuntimeFakeDocker(unittest.TestCase):
         (home / ".config" / "leobench" / "cursor").mkdir(parents=True)
         (home / ".config" / "leobench" / "cursor" / "auth.json").write_text(
             json.dumps({"accessToken": CURSOR_TOKEN}))
+        # The Cosine login cells copy (`cos login`, LeoBench's _agents.cosine_auth_path).
+        (home / ".cosine").mkdir(parents=True)
+        (home / ".cosine" / "auth.json").write_text(json.dumps({"token": "cosine-test"}))
         self.dist = None
         env = {"PATH": f"{bindir}:{os.environ['PATH']}", "HOME": str(home),
                "FAKE_DOCKER_LOG": str(self.log), "CLAUDE_CODE_OAUTH_TOKEN": TOKEN,
@@ -448,6 +455,23 @@ class ContainerRuntimeFakeDocker(unittest.TestCase):
         self.assertTrue(rec["valid"], rec)
         for secret in (TOKEN, KEY, API_KEY, OPENAI_KEY):
             self.assertNotIn(secret, self.all_text())
+
+    def test_cosine_raw_sealed(self):
+        repo = make_cycle(self.tmp, "cosine__cosine_raw_sealed", "Capsa_CVE-2022-21675_cycle1")
+        bench, ok = run_adapter("cosine", repo, adapter_args("cosine", "raw", None))
+        self.assertTrue(ok)
+        (run,) = self.docker_runs()
+        argv, joined = run["argv"], " ".join(run["argv"])
+        state = _corridor.state_dir_for(repo)
+        # One `cos -p` turn through LeoBench's driver, web tools capped at zero (LEO-987).
+        self.assertIn("python3 /leobench-cosine/cosine_turn.py --model lumen-outpost --deny-web --",
+                      joined)
+        self.assertIn(f"{state}/_cosine:/home/cell/.cosine", argv)
+        self.assertTrue((state / "_cosine" / "auth.json").is_file())
+        self.assertIn("save_memory", (state / "_cosine" / "config.toml").read_text())
+        self.assertEqual(run["forwarded"], {})          # the login is a file, never an env var
+        res = json.loads((state / "container_agent.json").read_text())
+        self.assertEqual((res["agent"], res["arm"], res["returncode"]), ("cosine", "raw", 0))
 
     def test_cursor_raw_sealed(self):
         repo = make_cycle(self.tmp, "cursor__cursor_raw_sealed", "Capsa_CVE-2022-21675_cycle1")
