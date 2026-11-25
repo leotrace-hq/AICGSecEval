@@ -26,17 +26,18 @@ Records, beside the cycle dir in `_security/<cycle>/` (the paths LeoBench's A.S.
                          restored_original, tool (provenance) and runtime; LeoBench also copies
                          the client log to leoprevent_client.log (and keeps _leoprevent/)
   container_agent.json   LeoBench's full result (status, returncode, image, tool policy, ...)
-  conversation.txt, result.diff, and LeoBench's per-cell dirs (_claude, _codex, _corridor,
-  _corridor-obs)
+  conversation.txt, result.diff, and LeoBench's per-cell dirs (_claude, _codex, _gemini,
+  _corridor, _corridor-obs)
 
 Secrets stay in the environment: CLAUDE_CODE_OAUTH_TOKEN (or $LEOPREVENT_ENV_FILE), the staged
-Codex auth.json, CORRIDOR_API_KEY. Nothing secret is put on the LeoBench command line.
+Codex auth.json, Vertex relay key, and CORRIDOR_API_KEY. Nothing secret is put on the LeoBench
+command line.
 
 The leoprevent arm runs the plugin snapshot run25_gen.sh staged from $LEOPREVENT_PLUGIN_DIR
 ($LEOPREVENT_PLUGIN_STAGED, LeoBench's `container_agent.py stage-leoprevent`) against the server
 at $LEOPREVENT_SERVER_URL (host.docker.internal:8787 for these batches; the adapters'
---leoprevent_server_url is a host-runtime option). Subscription auth only: the env file is the
-server's and holds its API key.
+--leoprevent_server_url is a host-runtime option). Claude/Codex use subscription auth; Gemini
+uses Vertex auth. The review server credential never becomes a coding-agent credential.
 """
 import json
 import os
@@ -52,7 +53,7 @@ ARMS = ("raw", "corridor", "commit-control", "leoprevent", "sonar-vortex")
 _PROJECT_ARMS = _corridor.ARMS + ("sonar-vortex",)
 # The run's staged Linux LeoPrevent plugin (LeoBench's `container_agent.py stage-leoprevent`).
 LEOPREVENT_STAGED_ENV = "LEOPREVENT_PLUGIN_STAGED"
-AUTHS = ("subscription", "api-key")
+AUTHS = ("subscription", "api-key", "vertex")
 # TESTS ONLY: a stub script run in the container instead of the agent (no model). Every record of
 # a cell run this way says stub_agent: true.
 STUB_ENV = "ASE_CONTAINER_STUB_AGENT"
@@ -114,16 +115,16 @@ class ContainerRuntime:
     def __init__(self, agent, arm, mode, repo_dir, model, logger, *, effort=None,
                  auth="subscription", env_file=None, corridor_dist=None, leobench_home=None,
                  claude_policy=None, timeout=None, leoprevent_plugin=None):
-        if agent not in ("claude", "codex", "cursor"):
+        if agent not in ("claude", "codex", "cursor", "gemini"):
             raise ContainerRuntimeError(f"unknown agent {agent!r}")
         if arm not in ARMS:
             raise ContainerRuntimeError(
                 f"--agent_runtime container runs the new A.S.E arms only ({', '.join(ARMS)}); "
                 f"arm {arm!r} stays on the host runtime")
-        if arm == "leoprevent" and auth != "subscription":
+        required_auth = "vertex" if agent == "gemini" else "subscription"
+        if arm == "leoprevent" and auth != required_auth:
             raise ContainerRuntimeError("--arm leoprevent in the container runs on --auth "
-                                        "subscription only (the env file holds the LeoPrevent "
-                                        "server's API key)")
+                                        f"{required_auth} with {agent}")
         if auth not in AUTHS:
             raise ContainerRuntimeError(f"--agent_runtime container supports --auth "
                                         f"{' or '.join(AUTHS)}, not {auth!r}")

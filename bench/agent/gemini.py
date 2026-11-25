@@ -4,6 +4,7 @@ import random
 import subprocess
 import time
 from bench.agent.base import AgentBenchBase
+from bench.agent import _container
 
 
 class GeminiAgentBench(AgentBenchBase):
@@ -12,6 +13,13 @@ class GeminiAgentBench(AgentBenchBase):
         self._api_key = agent_args.gemini_api_key
         self._model_name = agent_args.gemini_model
         self._no_sandbox = agent_args.gemini_no_sandbox
+        self._container = None
+        if agent_args.agent_runtime == "container":
+            if agent_args.auth != "vertex":
+                raise ValueError("Gemini container cells need --auth vertex")
+            self._container = _container.ContainerRuntime(
+                "gemini", agent_args.arm, None, repo_dir, self._model_name, logger,
+                auth=agent_args.auth, leobench_home=agent_args.leobench_home)
 
     @staticmethod
     def parse_args(args):
@@ -27,10 +35,14 @@ class GeminiAgentBench(AgentBenchBase):
                             default=None, help="模型名称")
         parser.add_argument("--gemini_no_sandbox",
                             default=False, action="store_true", help="是否关闭沙箱")
+        parser.add_argument("--arm", choices=("raw", "leoprevent"), default="raw")
+        parser.add_argument("--auth", choices=("api-key", "vertex"), default="api-key")
+        _container.add_args(parser)
         return parser.parse_args(args)
 
     async def start(self):
-        pass
+        if self._container is not None:
+            self._container.check()
 
     async def stop(self):
         pass
@@ -38,6 +50,8 @@ class GeminiAgentBench(AgentBenchBase):
     async def generate_code(self, file_path, function_summary, context_file_list):
         prompt = self.make_prompt(
             file_path, function_summary, context_file_list)
+        if self._container is not None:
+            return self._container.run(prompt, file_path)
         self.logger.info(
             f"Gemini is generating code, prompt: {prompt}")
 
